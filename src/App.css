@@ -1,38 +1,479 @@
-.App {
-  text-align: center;
+/* 기본 CSS 리셋 - index.css에서 병합 */
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+#root {
+    min-height: 100vh;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+/* ** 전역 스타일 및 연노랑 배경 ** */
+:root {
+    --color-light-yellow: #FFF8E1; /* 연노랑 배경 */
+    --color-lime: #DCF8C6; /* 연두색 */
+    --color-cyan: #B2EBF2; /* 청록색 */
+    --color-sky: #B3E5FC; /* 하늘색 */
+    --color-shadow: rgba(0, 0, 0, 0.1);
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+.app-container {
+    min-height: 100vh;
+    background-color: var(--color-light-yellow);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 }
 
-.App-link {
-  color: #61dafb;
+.main-content {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 1rem 0 3rem; /* 모바일 하단바 공간 확보 */
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* ** 1. 헤더 및 네비게이션 ** */
+
+.header-bar {
+    background-color: rgba(255, 255, 255, 0.9);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 4px var(--color-shadow);
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.header-content-wrapper {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 12px 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logo-icon {
+    width: 32px;
+    height: 32px;
+    color: #FFB300; /* 연노랑 계열 아이콘 */
+}
+
+.logo-text {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #333;
+    letter-spacing: 0.05em;
+}
+
+.logo-text span {
+    font-size: 0.875rem;
+    font-weight: normal;
+    color: #666;
+}
+
+.nav-menu {
+    display: none; /* 기본적으로 숨김 (데스크탑에서만 표시) */
+    gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+    .nav-menu {
+        display: flex;
+    }
+}
+
+.nav-button {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    padding: 8px 12px;
+    border-radius: 9999px; /* 둥근 모서리 */
+    color: #444;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.nav-button:hover {
+    color: #000;
+    background-color: #f5f5f5;
+}
+
+.nav-button.active {
+    color: white;
+    background-color: black;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.nav-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+}
+
+/* ** 2. 대시보드 레이아웃 ** */
+
+.dashboard-layout {
+    padding: 1rem;
+}
+
+/* 데이터 카드 그리드 */
+.data-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (min-width: 768px) {
+    .data-card-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.data-card {
+    padding: 20px;
+    border-radius: 24px; /* 둥글둥글한 느낌 */
+    box-shadow: 0 10px 15px var(--color-shadow);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 128px;
+    transition: transform 0.3s;
+    cursor: default;
+}
+
+.data-card:hover {
+    transform: scale(1.02);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.card-icon {
+    width: 24px;
+    height: 24px;
+    opacity: 0.8;
+}
+
+.card-value {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: #111;
+    margin-top: 8px;
+}
+
+.card-unit {
+    font-size: 1.25rem;
+    font-weight: normal;
+    opacity: 0.9;
+}
+
+/* 색상별 카드 스타일 */
+.cyan-card {
+    background-color: var(--color-cyan);
+    border: 1px solid #79D6E1;
+}
+
+.sky-card {
+    background-color: var(--color-sky);
+    border: 1px solid #73C2EB;
+}
+
+.lime-card {
+    background-color: var(--color-lime);
+    border: 1px solid #A8D98C;
+}
+
+/* 메인 콘텐츠 그리드 (폼 & 목록) */
+.main-content-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+    .main-content-grid {
+        grid-template-columns: 1fr 2fr;
+    }
+}
+
+/* ** 3. 음식 추가 폼 ** */
+.add-form-container {
+    background-color: white;
+    padding: 24px;
+    border-radius: 24px;
+    box-shadow: 0 10px 15px var(--color-shadow);
+    border: 2px dashed #ccc;
+}
+
+.form-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+}
+
+.form-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    color: #8BC34A; /* 연두색 강조 */
+}
+
+.form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus {
+    border-color: #8BC34A;
+    box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.3);
+}
+
+.submit-button {
+    width: 100%;
+    background-color: #8BC34A; /* 연두색 */
+    color: white;
+    font-weight: bold;
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.2s, transform 0.1s;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.submit-button:hover {
+    background-color: #7CB342;
+}
+
+.button-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+}
+
+/* ** 4. 음식 목록 ** */
+.meal-list-container {
+    background-color: white;
+    padding: 24px;
+    border-radius: 24px;
+    box-shadow: 0 10px 15px var(--color-shadow);
+}
+
+.list-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.meal-items-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.meal-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background-color: #FAFAFA;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    transition: box-shadow 0.2s;
+}
+
+.meal-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.meal-name {
+    font-weight: 600;
+    font-size: 1.125rem;
+    color: #444;
+}
+
+.meal-time {
+    font-size: 0.875rem;
+    color: #777;
+}
+
+.meal-details {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.meal-calories {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #8BC34A;
+}
+
+.delete-button {
+    font-size: 1.2rem;
+    color: #999;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.delete-button:hover {
+    color: #E57373;
+}
+
+.empty-message {
+    text-align: center;
+    color: #777;
+    padding: 1rem;
+}
+
+/* ** 5. 기타 페이지 Placeholder ** */
+.placeholder-page-wrapper {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.placeholder-page-box {
+    padding: 40px;
+    border-radius: 24px;
+    box-shadow: 0 10px 20px var(--color-shadow);
+    text-align: center;
+}
+
+.sky-theme {
+    background-color: #E3F2FD; /* Light Sky */
+    border: 1px solid #90CAF9;
+}
+
+.lime-theme {
+    background-color: #F1F8E9; /* Light Lime */
+    border: 1px solid #C5E1A5;
+}
+
+.placeholder-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #1565C0;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lime-theme .placeholder-title {
+    color: #558B2F;
+}
+
+.placeholder-icon {
+    width: 32px;
+    height: 32px;
+    margin-right: 8px;
+}
+
+.placeholder-text {
+    color: #666;
+    font-size: 1.125rem;
+    margin-bottom: 1.5rem;
+}
+
+.placeholder-visual {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f0f0f0;
+    color: #aaa;
+}
+
+/* ** 6. 모바일 하단 내비게이션 ** */
+.mobile-nav-bar {
+    display: block; /* 기본적으로 표시 (모바일) */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.95);
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+    padding: 8px 0;
+    z-index: 20;
+}
+
+@media (min-width: 640px) {
+    .mobile-nav-bar {
+        display: none; /* 데스크탑에서는 숨김 */
+    }
+}
+
+.mobile-nav-items {
+    display: flex;
+    justify-content: space-around; /* 오류 수정: 'justify-around' -> 'justify-content: space-around' */
+}
+
+.mobile-nav-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 12px;
+    transition: color 0.2s, background-color 0.2s;
+    width: 30%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #AAA;
+}
+
+.mobile-nav-button:hover {
+    color: white;
+}
+
+.mobile-nav-button.active {
+    color: #AEEA00; /* 연두색 강조 */
+}
+
+.mobile-nav-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.mobile-nav-label {
+    font-size: 0.75rem;
+    margin-top: 4px;
 }
