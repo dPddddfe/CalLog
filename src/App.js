@@ -127,6 +127,8 @@ const TodayDietPage = () => {
   const [height, setHeight] = useState('');        // cm
   const [weight, setWeight] = useState('');        // kg
   const [targetWeight, setTargetWeight] = useState(''); // kg
+  const [age, setAge] = useState('');              // 나이 - 새로 추가
+  const [gender, setGender] = useState('female');    // 성별 - 새로 추가 (기본값: 여성)
   const [activity, setActivity] = useState('medium');   // low / medium / high
 
   // 총 칼로리 계산
@@ -136,27 +138,52 @@ const TodayDietPage = () => {
 
   const remainingCalories = goalCalories - totalCalories;
 
-  // ✅ 목표 칼로리 추천 함수
+    //  목표 칼로리 추천 함수 (Mifflin-St Jeor 공식 사용)
   const handleRecommendGoal = () => {
-    const w = Number(weight);
-    if (!w) return;            // 몸무게 없으면 계산 안 함
-
-    // 활동량에 따른 계수 (대충 감각용)
-    let factor;
-    if (activity === 'low') factor = 28;
-    else if (activity === 'high') factor = 34;
-    else factor = 30; // medium
-
-    // 기본 권장량
-    let recommended = w * factor;
-
-    // 목표 몸무게가 있으면 살을 빼고 싶으면 조금 깎고, 늘리고 싶으면 조금 더
-    const tw = Number(targetWeight);
-    if (tw) {
-      const diff = w - tw; // (+면 감량, -면 증량)
-      recommended -= diff * 5; // 아주 가볍게 조정
+    // 1단계: 입력값 가져오기
+    const w = Number(weight);    // 몸무게
+    const h = Number(height);    // 키
+    const a = Number(age);       // 나이
+    
+    // 입력값 확인 - 하나라도 없으면 계산 안 함
+    if (!w || !h || !a) {
+      alert('키, 몸무게, 나이를 모두 입력해주세요!');
+      return;
     }
 
+    // 2단계: BMR 계산 (기초대사량 = 가만히 있어도 소모되는 칼로리)
+    // Mifflin-St Jeor 공식
+    let bmr = (10 * w) + (6.25 * h) - (5 * a);
+    
+    // 성별에 따라 마지막 숫자 더하거나 빼기
+    if (gender === 'male') {
+      bmr += 5;      // 남성: +5
+    } else {
+      bmr -= 161;    // 여성: -161
+    }
+
+    // 3단계: 활동량 곱하기 (실제로 필요한 칼로리)
+    let activityFactor;
+    if (activity === 'low') activityFactor = 1.2;        // 거의 운동 안 함
+    else if (activity === 'high') activityFactor = 1.725; // 많이 활동함
+    else activityFactor = 1.55;                          // 보통
+
+    let recommended = bmr * activityFactor;
+
+    // 4단계: 목표 몸무게에 따라 조정
+    const tw = Number(targetWeight);
+    if (tw) {
+      const diff = w - tw;  // 현재 - 목표
+      if (diff > 0) {
+        // 살을 빼고 싶으면: -500 kcal
+        recommended -= 500;
+      } else if (diff < 0) {
+        // 살을 찌우고 싶으면: +500 kcal
+        recommended += 500;
+      }
+    }
+
+    // 5단계: 소수점 제거하고 설정
     recommended = Math.round(recommended);
     setGoalCalories(recommended);
   };
@@ -187,10 +214,10 @@ const TodayDietPage = () => {
       {/* 좌측 패널 - 모든 콘텐츠 포함 */}
       <div className="left-panel">
         {/* 상단: 요약 카드들 */}
-        <div className="summary-row">
+        <div className="summary-section">
           {/* 왼쪽: 오늘 칼로리 요약 */}
+          <div className="section-header">오늘 총 섭취 칼로리</div>
           <div className="summary-card">
-            <div className="summary-title">오늘 총 섭취 칼로리</div>
             <div className="summary-value">{totalCalories} kcal</div>
   
             <div className="summary-sub">목표 {goalCalories} kcal 기준</div>
@@ -213,75 +240,106 @@ const TodayDietPage = () => {
           </div>
   
           {/* 오른쪽: 개인 맞춤 목표 설정 */}
-          <div className="summary-right">
-            <div className="summary-right-title">개인 맞춤 목표 설정</div>
-  
-            <div className="summary-right-row">
-              <label>
-                키
-                <input
-                  type="number"
-                  className="summary-input"
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                  placeholder="cm"
-                />
-                <span className="summary-input-unit">cm</span>
-              </label>
+          <div className="summary-section"></div>
+            <div className="section-header">개인 맞춤 목표 설정</div>
+            <div className="summary-right">
+
+              {/* 성별 선택 */}
+              <div className="summary-right-row">
+                <label>
+                  성별
+                  <select
+                    className="summary-select"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                  >
+                    <option value="male">남성</option>
+                    <option value="female">여성</option>
+                  </select>
+                </label>
+              </div>
+
+              {/* 나이 입력 */}
+              <div className="summary-right-row">
+                <label>
+                  나이
+                  <input
+                    type="number"
+                    className="summary-input"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    placeholder="세"
+                  />
+                  <span className="summary-input-unit">세</span>
+                </label>
+              </div>
+
+              <div className="summary-right-row">
+                <label>
+                  키
+                  <input
+                    type="number"
+                    className="summary-input"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    placeholder="cm"
+                  />
+                  <span className="summary-input-unit">cm</span>
+                </label>
+              </div>
+    
+              <div className="summary-right-row">
+                <label>
+                  현재 몸무게
+                  <input
+                    type="number"
+                    className="summary-input"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    placeholder="kg"
+                  />
+                  <span className="summary-input-unit">kg</span>
+                </label>
+              </div>
+    
+              <div className="summary-right-row">
+                <label>
+                  목표 몸무게
+                  <input
+                    type="number"
+                    className="summary-input"
+                    value={targetWeight}
+                    onChange={(e) => setTargetWeight(e.target.value)}
+                    placeholder="kg"
+                  />
+                  <span className="summary-input-unit">kg</span>
+                </label>
+              </div>
+    
+              <div className="summary-right-row">
+                <label>
+                  활동량
+                  <select
+                    className="summary-select"
+                    value={activity}
+                    onChange={(e) => setActivity(e.target.value)}
+                  >
+                    <option value="low">낮음 (운동 거의 안 함)</option>
+                    <option value="medium">보통 (주 1~3회 가벼운 운동)</option>
+                    <option value="high">높음 (주 3회 이상 활동적)</option>
+                  </select>
+                </label>
+              </div>
+    
+              <button
+                type="button"
+                className="summary-button"
+                onClick={handleRecommendGoal}
+              >
+                목표 칼로리 제안하기
+              </button>
             </div>
-  
-            <div className="summary-right-row">
-              <label>
-                현재 몸무게
-                <input
-                  type="number"
-                  className="summary-input"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  placeholder="kg"
-                />
-                <span className="summary-input-unit">kg</span>
-              </label>
-            </div>
-  
-            <div className="summary-right-row">
-              <label>
-                목표 몸무게
-                <input
-                  type="number"
-                  className="summary-input"
-                  value={targetWeight}
-                  onChange={(e) => setTargetWeight(e.target.value)}
-                  placeholder="kg"
-                />
-                <span className="summary-input-unit">kg</span>
-              </label>
-            </div>
-  
-            <div className="summary-right-row">
-              <label>
-                활동량
-                <select
-                  className="summary-select"
-                  value={activity}
-                  onChange={(e) => setActivity(e.target.value)}
-                >
-                  <option value="low">낮음 (운동 거의 안 함)</option>
-                  <option value="medium">보통 (주 1~3회 가벼운 운동)</option>
-                  <option value="high">높음 (주 3회 이상 활동적)</option>
-                </select>
-              </label>
-            </div>
-  
-            <button
-              type="button"
-              className="summary-button"
-              onClick={handleRecommendGoal}
-            >
-              목표 칼로리 제안하기
-            </button>
           </div>
-        </div>
   
         {/* 목록 */}
         <div className="section-header">목록</div>
