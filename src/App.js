@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import './App.css'; 
 
 // Chart.js 모듈 등록
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -120,40 +121,183 @@ const TodayDietPage = () => {
   const [meals, setMeals] = useState(initialMeals);
   const [newMeal, setNewMeal] = useState({ name: '', calories: '', carbs: '', sugar: '' });
   const nextId = useRef(initialMeals.length + 1);
+  const [goalCalories, setGoalCalories] = useState(1800); // 사용자가 설정하는 목표 칼로리 (기본값 1800)
+
+  // 키/몸무게/활동량 상태
+  const [height, setHeight] = useState('');        // cm
+  const [weight, setWeight] = useState('');        // kg
+  const [targetWeight, setTargetWeight] = useState(''); // kg
+  const [activity, setActivity] = useState('medium');   // low / medium / high
+
+  // 총 칼로리 계산
+  const totalCalories = useMemo(() => {
+    return meals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
+  }, [meals]);
+
+  const remainingCalories = goalCalories - totalCalories;
+
+  // ✅ 목표 칼로리 추천 함수
+  const handleRecommendGoal = () => {
+    const w = Number(weight);
+    if (!w) return;            // 몸무게 없으면 계산 안 함
+
+    // 활동량에 따른 계수 (대충 감각용)
+    let factor;
+    if (activity === 'low') factor = 28;
+    else if (activity === 'high') factor = 34;
+    else factor = 30; // medium
+
+    // 기본 권장량
+    let recommended = w * factor;
+
+    // 목표 몸무게가 있으면 살을 빼고 싶으면 조금 깎고, 늘리고 싶으면 조금 더
+    const tw = Number(targetWeight);
+    if (tw) {
+      const diff = w - tw; // (+면 감량, -면 증량)
+      recommended -= diff * 5; // 아주 가볍게 조정
+    }
+
+    recommended = Math.round(recommended);
+    setGoalCalories(recommended);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewMeal(prev => ({ ...prev, [name]: value }));
+    setNewMeal((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleAddMeal = () => {
     if (newMeal.name && newMeal.calories) {
-      setMeals(prev => [...prev, {
-        id: nextId.current++,
-        name: newMeal.name,
-        calories: parseInt(newMeal.calories),
-        carbs: parseInt(newMeal.carbs || 0),
-        sugar: parseInt(newMeal.sugar || 0),
-      }]);
+      setMeals((prev) => [
+        ...prev,
+        {
+          id: nextId.current++,
+          name: newMeal.name,
+          calories: parseInt(newMeal.calories),
+          carbs: parseInt(newMeal.carbs || 0),
+          sugar: parseInt(newMeal.sugar || 0),
+        },
+      ]);
       setNewMeal({ name: '', calories: '', carbs: '', sugar: '' });
     }
   };
 
   return (
     <div className="today-diet-layout">
-      {/* 좌측: 음식 목록 및 추가 */}
+      {/* 좌측 패널 - 모든 콘텐츠 포함 */}
       <div className="left-panel">
+        {/* 상단: 요약 카드들 */}
+        <div className="summary-row">
+          {/* 왼쪽: 오늘 칼로리 요약 */}
+          <div className="summary-card">
+            <div className="summary-title">오늘 총 섭취 칼로리</div>
+            <div className="summary-value">{totalCalories} kcal</div>
+  
+            <div className="summary-sub">목표 {goalCalories} kcal 기준</div>
+  
+            <div className="summary-goal-row">
+              <input
+                type="number"
+                value={goalCalories}
+                onChange={(e) => setGoalCalories(Number(e.target.value) || 0)}
+                className="goal-input"
+              />
+              <span className="summary-goal-unit">kcal</span>
+            </div>
+  
+            <div className="summary-sub">
+              {remainingCalories >= 0
+                ? `남은 칼로리: ${remainingCalories} kcal`
+                : `초과 칼로리: ${Math.abs(remainingCalories)} kcal`}
+            </div>
+          </div>
+  
+          {/* 오른쪽: 개인 맞춤 목표 설정 */}
+          <div className="summary-right">
+            <div className="summary-right-title">개인 맞춤 목표 설정</div>
+  
+            <div className="summary-right-row">
+              <label>
+                키
+                <input
+                  type="number"
+                  className="summary-input"
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value)}
+                  placeholder="cm"
+                />
+                <span className="summary-input-unit">cm</span>
+              </label>
+            </div>
+  
+            <div className="summary-right-row">
+              <label>
+                현재 몸무게
+                <input
+                  type="number"
+                  className="summary-input"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  placeholder="kg"
+                />
+                <span className="summary-input-unit">kg</span>
+              </label>
+            </div>
+  
+            <div className="summary-right-row">
+              <label>
+                목표 몸무게
+                <input
+                  type="number"
+                  className="summary-input"
+                  value={targetWeight}
+                  onChange={(e) => setTargetWeight(e.target.value)}
+                  placeholder="kg"
+                />
+                <span className="summary-input-unit">kg</span>
+              </label>
+            </div>
+  
+            <div className="summary-right-row">
+              <label>
+                활동량
+                <select
+                  className="summary-select"
+                  value={activity}
+                  onChange={(e) => setActivity(e.target.value)}
+                >
+                  <option value="low">낮음 (운동 거의 안 함)</option>
+                  <option value="medium">보통 (주 1~3회 가벼운 운동)</option>
+                  <option value="high">높음 (주 3회 이상 활동적)</option>
+                </select>
+              </label>
+            </div>
+  
+            <button
+              type="button"
+              className="summary-button"
+              onClick={handleRecommendGoal}
+            >
+              목표 칼로리 제안하기
+            </button>
+          </div>
+        </div>
+  
+        {/* 목록 */}
         <div className="section-header">목록</div>
         <div className="meal-list-section">
           {meals.map((meal) => (
             <div key={meal.id} className="meal-item-card">
               <span className="meal-name">{meal.name}</span>
               <span className="meal-calories">{meal.calories}kcal</span>
-              <span className="meal-macros">탄수화물-{meal.carbs} 당류-{meal.sugar}</span>
+              <span className="meal-macros">
+                탄수화물-{meal.carbs} 당류-{meal.sugar}
+              </span>
             </div>
           ))}
         </div>
-
+  
+        {/* 음식 추가 */}
         <div className="section-header add-food-header">음식 추가</div>
         <div className="add-meal-section">
           <input
@@ -188,10 +332,12 @@ const TodayDietPage = () => {
             onChange={handleInputChange}
             className="add-input"
           />
-          <button onClick={handleAddMeal} className="add-button">추가</button>
+          <button onClick={handleAddMeal} className="add-button">
+            추가
+          </button>
         </div>
       </div>
-
+  
       {/* 우측: 도넛 차트 */}
       <div className="right-panel">
         <MacroDoughnutChart meals={meals} />
