@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import WeeklyCalendarPage from './pages/WeeklyCalendarPage';
+import MonthlyCalendarPage from './pages/MonthlyCalendarPage';
 import './App.css'; 
 
 // Chart.js 모듈 등록
@@ -33,8 +35,8 @@ const Header = ({ currentPage, setCurrentPage }) => {
   const navItems = [
     { key: 'today', label: '오늘의 식단' },
     { key: 'calorie', label: '칼로리 관리' },
-    { key: 'weekly', label: '주별 달력' },
-    { key: 'monthly', label: '월별 달력' },
+    { key: 'weekly', label: '주간 달력' },
+    { key: 'monthly', label: '월간 달력' },
   ];
 
   return (
@@ -159,7 +161,10 @@ const handleEditSave = () => {
   const [meals, setMeals] = useState(initialMeals);
   const [newMeal, setNewMeal] = useState({ name: '', calories: '', carbs: '', sugar: '' });
   const nextId = useRef(initialMeals.length + 1);
-  const [goalCalories, setGoalCalories] = useState(1800); // 사용자가 설정하는 목표 칼로리 (기본값 1800)
+  const [goalCalories, setGoalCalories] = useState(() => {
+    const saved = localStorage.getItem('goalCalories');
+    return saved ? Number(saved) : 1800; // 저장된 값 또는 기본값 1800
+  });
 
   // 키/몸무게/활동량 상태
   const [height, setHeight] = useState('');        // cm
@@ -176,7 +181,14 @@ const handleEditSave = () => {
 
   const remainingCalories = goalCalories - totalCalories;
 
-    //  목표 칼로리 추천 함수 (Mifflin-St Jeor 공식 사용)
+  // 목표 칼로리가 바뀔 때마다 localStorage에 저장
+  const handleGoalCaloriesChange = (value) => {
+    const newGoal = Number(value) || 0;
+    setGoalCalories(newGoal);
+    localStorage.setItem('goalCalories', newGoal); // 저장!
+  };
+
+  //  목표 칼로리 추천 함수 (Mifflin-St Jeor 공식 사용)
   const handleRecommendGoal = () => {
     // 1단계: 입력값 가져오기
     const w = Number(weight);    // 몸무게
@@ -224,6 +236,7 @@ const handleEditSave = () => {
     // 5단계: 소수점 제거하고 설정
     recommended = Math.round(recommended);
     setGoalCalories(recommended);
+    localStorage.setItem('goalCalories', recommended); // 저장!
   };
 
   const handleInputChange = (e) => {
@@ -247,6 +260,8 @@ const handleEditSave = () => {
     }
   };
 
+
+
   return (
     <div className="today-diet-layout">
       {/* 좌측 패널 - 모든 콘텐츠 포함 */}
@@ -264,7 +279,7 @@ const handleEditSave = () => {
               <input
                 type="number"
                 value={goalCalories}
-                onChange={(e) => setGoalCalories(Number(e.target.value) || 0)}
+                onChange={(e) => handleGoalCaloriesChange(e.target.value)} // 수정!
                 className="goal-input"
               />
               <span className="summary-goal-unit">kcal</span>
@@ -510,7 +525,7 @@ const CaloriePage = () => (
     </div>
   </div>
 );
-
+/*
 const WeeklyCalendarPage = () => (
   <div className="placeholder-page-wrapper">
     <div className="placeholder-page-box lime-theme">
@@ -541,7 +556,7 @@ const MonthlyCalendarPage = () => (
       </div>
     </div>
   </div>
-);
+); */
 
 
 // --- 4. 메인 애플리케이션 컴포넌트 ---
