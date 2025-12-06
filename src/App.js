@@ -118,6 +118,44 @@ const MacroDoughnutChart = ({ meals }) => {
 
 // --- 메인 페이지 컴포넌트 ---
 const TodayDietPage = () => {
+  // 수정 기능을 위한 상태
+const [editingId, setEditingId] = useState(null);
+const [editMeal, setEditMeal] = useState({ name: '', calories: '', carbs: '', sugar: '' });
+
+// 삭제 처리
+const handleDelete = (id) => {
+  setMeals(meals.filter((meal) => meal.id !== id));
+};
+
+// 수정 시작: 기존 값 입력창에 로드
+const handleEditStart = (meal) => {
+  setEditingId(meal.id);
+  setEditMeal({ ...meal });
+};
+
+// 수정 입력 처리
+const handleEditChange = (e) => {
+  const { name, value } = e.target;
+  setEditMeal((prev) => ({ ...prev, [name]: value }));
+};
+
+// 수정 저장
+const handleEditSave = () => {
+  setMeals((prev) =>
+    prev.map((meal) =>
+      meal.id === editingId
+        ? {
+            ...editMeal,
+            calories: Number(editMeal.calories),
+            carbs: Number(editMeal.carbs),
+            sugar: Number(editMeal.sugar),
+          }
+        : meal
+    )
+  );
+  setEditingId(null);
+};
+
   const [meals, setMeals] = useState(initialMeals);
   const [newMeal, setNewMeal] = useState({ name: '', calories: '', carbs: '', sugar: '' });
   const nextId = useRef(initialMeals.length + 1);
@@ -344,16 +382,66 @@ const TodayDietPage = () => {
         {/* 목록 */}
         <div className="section-header">목록</div>
         <div className="meal-list-section">
-          {meals.map((meal) => (
-            <div key={meal.id} className="meal-item-card">
-              <span className="meal-name">{meal.name}</span>
-              <span className="meal-calories">{meal.calories}kcal</span>
-              <span className="meal-macros">
-                탄수화물-{meal.carbs} 당류-{meal.sugar}
-              </span>
-            </div>
-          ))}
-        </div>
+  {meals.map((meal) => (
+    <div key={meal.id} className="meal-item-card">
+      {editingId === meal.id ? (
+        <>
+          <input
+            type="text"
+            name="name"
+            value={editMeal.name}
+            onChange={handleEditChange}
+            className="add-input"
+          />
+          <input
+            type="number"
+            name="calories"
+            value={editMeal.calories}
+            onChange={handleEditChange}
+            className="add-input small-input"
+          />
+          <input
+            type="number"
+            name="carbs"
+            value={editMeal.carbs}
+            onChange={handleEditChange}
+            className="add-input"
+          />
+          <input
+            type="number"
+            name="sugar"
+            value={editMeal.sugar}
+            onChange={handleEditChange}
+            className="add-input"
+          />
+
+          <button onClick={handleEditSave} className="add-button">
+            저장
+          </button>
+          <button onClick={() => setEditingId(null)} className="add-button delete">
+            취소
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="meal-name">{meal.name}</span>
+          <span className="meal-calories">{meal.calories} kcal</span>
+          <span className="meal-macros">
+            탄수화물-{meal.carbs} 당류-{meal.sugar}
+          </span>
+
+          <button className="add-button" onClick={() => handleEditStart(meal)}>
+            수정
+          </button>
+          <button className="add-button delete" onClick={() => handleDelete(meal.id)}>
+            삭제
+          </button>
+        </>
+      )}
+    </div>
+  ))}
+</div>
+
   
         {/* 음식 추가 */}
         <div className="section-header add-food-header">음식 추가</div>
