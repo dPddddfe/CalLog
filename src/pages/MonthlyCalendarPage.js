@@ -11,7 +11,18 @@ import {
   Legend,
   Filler
 } from 'chart.js';
+import { 
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval,
+  format,
+  addMonths,
+  subMonths,
+  getDay
+} from 'date-fns';
+import { ko } from 'date-fns/locale';
 
+// Chart.js 모듈 등록
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -24,22 +35,47 @@ ChartJS.register(
 );
 
 const MonthlyCalendarPage = () => {
-  // 30일치 더미 데이터
-  const dummyMonthData = Array.from({ length: 30 }, (_, i) => ({
-    date: i + 1,
-    calories: Math.floor(Math.random() * 500) + 1700, // 1700~2200
-    goal: 2000
-  }));
-
-  const [currentMonth, setCurrentMonth] = useState('2024년 12월');
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
+  
+  // 🔹 localStorage에서 목표 칼로리 불러오기
+  const [goalCalories, setGoalCalories] = useState(() => {
+    const saved = localStorage.getItem('goalCalories');
+    return saved ? Number(saved) : 2000;
+  });
+
+  // 이번 달의 시작/끝 날짜
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  
+  const monthDates = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  
+  // 월 표시
+  const monthTitle = format(currentDate, 'yyyy년 M월', { locale: ko });
+
+  // 이전/다음 달 이동
+  const handlePrevMonth = () => {
+    setCurrentDate(subMonths(currentDate, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(addMonths(currentDate, 1));
+  };
+
+  // 🔹 더미 데이터 (실제 목표 칼로리 사용)
+  const dummyMonthData = monthDates.map(date => ({
+    date: format(date, 'd'),
+    fullDate: format(date, 'yyyy-MM-dd'),
+    calories: Math.floor(Math.random() * 500) + 1700, // 1700~2200
+    goal: goalCalories  // ← localStorage에서 가져온 값!
+  }));
 
   // 평균 계산
   const avgCalories = Math.round(
-    dummyMonthData.reduce((sum, day) => sum + day.calories, 0) / 30
+    dummyMonthData.reduce((sum, day) => sum + day.calories, 0) / dummyMonthData.length
   );
 
-  // Chart.js 데이터 (월간은 5일 간격으로 표시)
+  // Chart.js 데이터 (5일 간격으로 표시)
   const chartData = {
     labels: dummyMonthData
       .filter((_, i) => i % 5 === 0 || i === dummyMonthData.length - 1)
@@ -117,28 +153,47 @@ const MonthlyCalendarPage = () => {
   };
 
   // 달력 그리드용 데이터 (빈 칸 포함)
+  const firstDayOfWeek = getDay(monthStart); // 0=일요일, 1=월요일...
+  const emptyDays = Array(firstDayOfWeek).fill(null);
+
   const calendarData = [
-    null, null, null, null, null, // 1일이 토요일이라고 가정
+    ...emptyDays,
     ...dummyMonthData
   ];
 
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
+  // 날짜 클릭
+  const handleDateClick = (dayData) => {
+    if (dayData && dayData.calories !== null) {
+      setSelectedDate(dayData);
+    }
+  };
+
+  // 모달 닫기
+  const closeModal = () => {
+    setSelectedDate(null);
+  };
+
   return (
     <div className="calendar-page-container">
       {/* 월 네비게이션 */}
       <div className="month-navigation">
-        <button className="nav-arrow-button">← 이전 달</button>
-        <h2 className="month-title">{currentMonth}</h2>
-        <button className="nav-arrow-button">다음 달 →</button>
+        <button className="nav-arrow-button" onClick={handlePrevMonth}>
+          ← 이전 달
+        </button>
+        <h2 className="month-title">{monthTitle}</h2>
+        <button className="nav-arrow-button" onClick={handleNextMonth}>
+          다음 달 →
+        </button>
       </div>
 
       {/* 상태 요약 */}
       <div className="status-summary">
         <h3 className="status-title">이번 달에 평균 {avgCalories}kcal 먹었어요</h3>
         <div className="status-detail">
-          <span>🎯 목표 2000kg</span>
-          <span>😊 지금까지 -{(2000 - avgCalories) * 30}kcal</span>
+          <span>🎯 목표 {goalCalories}kcal</span>
+          <span>😊 지금까지 -{(goalCalories - avgCalories) * dummyMonthData.length}kcal</span>
         </div>
       </div>
 
@@ -149,12 +204,12 @@ const MonthlyCalendarPage = () => {
         </div>
       </div>
 
-      {/* 탭 버튼 */}
+      {/* 탭 버튼
       <div className="period-tabs">
         <button className="period-tab">일간</button>
         <button className="period-tab">주간</button>
         <button className="period-tab active">월간</button>
-      </div>
+      </div> */}
 
       {/* 달력 뷰 */}
       <div className="section-header" style={{ marginTop: '2rem' }}>
@@ -172,6 +227,7 @@ const MonthlyCalendarPage = () => {
       <div className="monthly-grid">
         {calendarData.map((dayData, index) => {
           if (!dayData) {
+            // 빈 칸 (이전/다음 달)
             return <div key={index} className="calendar-cell empty-cell"></div>;
           }
 
@@ -185,15 +241,18 @@ const MonthlyCalendarPage = () => {
               className={`calendar-cell ${hasData ? 'has-data' : 'no-data'} ${
                 achieved ? 'achieved' : 'not-achieved'
               }`}
-              onClick={() => setSelectedDate(dayData)}
+              onClick={() => handleDateClick(dayData)}
             >
               <div className="cell-date">{dayData.date}</div>
+              
               {hasData && (
                 <>
                   <div className="cell-calories">
                     {(dayData.calories / 1000).toFixed(1)}k
                   </div>
-                  <div className="cell-badge">{achieved ? '✅' : '❌'}</div>
+                  <div className="cell-badge">
+                    {achieved ? '✅' : '❌'}
+                  </div>
                 </>
               )}
             </div>
@@ -201,14 +260,16 @@ const MonthlyCalendarPage = () => {
         })}
       </div>
 
-      {/* 모달 */}
+      {/* 상세 정보 모달 */}
       {selectedDate && (
-        <div className="modal-overlay" onClick={() => setSelectedDate(null)}>
+        <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setSelectedDate(null)}>
+            <button className="modal-close" onClick={closeModal}>
               ✕
             </button>
-            <h3 className="modal-title">12월 {selectedDate.date}일</h3>
+            <h3 className="modal-title">
+              {format(currentDate, 'M월', { locale: ko })} {selectedDate.date}일
+            </h3>
             <div className="modal-info">
               <div className="modal-row">
                 <span className="modal-label">섭취 칼로리:</span>
@@ -217,6 +278,15 @@ const MonthlyCalendarPage = () => {
               <div className="modal-row">
                 <span className="modal-label">목표 칼로리:</span>
                 <span className="modal-value">{selectedDate.goal} kcal</span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-label">차이:</span>
+                <span className="modal-value" style={{ 
+                  color: selectedDate.calories - selectedDate.goal >= 0 ? '#EF5350' : '#66BB6A' 
+                }}>
+                  {selectedDate.calories - selectedDate.goal >= 0 ? '+' : ''}
+                  {selectedDate.calories - selectedDate.goal} kcal
+                </span>
               </div>
               <div className="modal-row">
                 <span className="modal-label">달성 여부:</span>
