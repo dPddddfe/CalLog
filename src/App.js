@@ -3,6 +3,8 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import WeeklyCalendarPage from './pages/WeeklyCalendarPage';
 import MonthlyCalendarPage from './pages/MonthlyCalendarPage';
+import CalorieManagementPage from './pages/CalorieManagement'; 
+
 import './App.css'; 
 
 // Chart.js 모듈 등록
@@ -509,7 +511,7 @@ const handleEditSave = () => {
 
 
 // --- 3. 기타 페이지 컴포넌트 (Placeholder) ---
-
+/*
 const CaloriePage = () => (
   <div className="placeholder-page-wrapper">
     <div className="placeholder-page-box sky-theme">
@@ -525,7 +527,7 @@ const CaloriePage = () => (
     </div>
   </div>
 );
-/*
+
 const WeeklyCalendarPage = () => (
   <div className="placeholder-page-wrapper">
     <div className="placeholder-page-box lime-theme">
@@ -568,7 +570,7 @@ const App = () => {
       case 'today':
         return <TodayDietPage />;
       case 'calorie':
-        return <CaloriePage />;
+        return <CalorieManagementPage />;
       case 'weekly':
         return <WeeklyCalendarPage />;
       case 'monthly':
