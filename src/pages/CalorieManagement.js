@@ -9,6 +9,14 @@ const getDummyData = (goal) => {
     const carbs = [];
     const sugar = [];
 
+    // 월간 데이터를 위한 더미 생성 (최근 30일)
+    const monthlyCalories = [];
+    for(let i = 29; i >= 0; i--) {
+        const cal = Math.round(goal * (1 + (Math.random() * 0.4 - 0.2))); // 목표 +- 20%
+        monthlyCalories.push(cal);
+    }
+    const monthlyAchievedDays = monthlyCalories.filter(cal => cal <= goal * 1.1 && cal >= goal * 0.9).length;
+
     // 목표 칼로리에 기반한 목표 매크로 설정 (단위: g)
     const targetProtein = goal * 0.25 / 4; // 단백질: 4 kcal/g
     const targetCarbs = goal * 0.55 / 4;   // 탄수화물: 4 kcal/g
@@ -37,7 +45,18 @@ const getDummyData = (goal) => {
         calories.push(cal);
     }
     
-    return { labels, calories, protein, carbs, sugar };
+    // 오늘의 데이터는 가장 마지막 요소
+    const todayCalories = calories[calories.length - 1];
+
+    return { 
+        labels, 
+        calories, 
+        protein, 
+        carbs, 
+        sugar, 
+        todayCalories,
+        monthlyAchievedDays 
+    };
 };
 
 
@@ -46,7 +65,8 @@ const CalorieManagementPage = () => {
     const [isEditingGoal, setIsEditingGoal] = useState(false);
     const [newGoal, setNewGoal] = useState(goalCalories);
 
-    const { calories, protein, carbs, sugar } = getDummyData(goalCalories);
+    // 데이터 가져오기
+    const { calories, protein, carbs, sugar, todayCalories, monthlyAchievedDays } = getDummyData(goalCalories);
 
     // --- 주간 평균 계산 ---
     const calculateAvg = (arr) => Math.round(arr.reduce((sum, val) => sum + val, 0) / arr.length);
@@ -55,6 +75,9 @@ const CalorieManagementPage = () => {
     const avgProtein = calculateAvg(protein);
     const avgCarbs = calculateAvg(carbs);
     const avgSugar = calculateAvg(sugar);
+
+    const weeklyAchievedDays = calories.filter(cal => cal <= goalCalories * 1.1 && cal >= goalCalories * 0.9).length;
+
 
     // 목표 매크로 (평균 섭취량 비교를 위한 기준값)
     const goalProtein = Math.round(goalCalories * 0.25 / 4);
@@ -71,14 +94,14 @@ const CalorieManagementPage = () => {
     };
 
     // 재활용 가능한 통계 카드 컴포넌트
-    const StatCard = ({ title, value, unit, color, isGoal, goalValue, isGoalSetting }) => {
+    const StatCard = ({ title, value, unit, color, isGoal, goalValue, isGoalSetting, heightClass = '' }) => {
         const diff = goalValue ? value - goalValue : null;
+        // 목표 초과 여부에 따라 색상 지정
         const diffColor = diff > 0 ? 'text-red-600' : diff < 0 ? 'text-blue-600' : 'text-gray-600';
-
-        // isGoalSetting 플래그를 사용하여 배경색을 토글
+        // 달성일수는 높이 클래스를 무시하고 기본 스타일 적용
         const cardClass = isGoalSetting 
-            ? `summary-card goal-setting-card bg-white border-l-4 border-gray-400`
-            : `summary-card bg-white border-l-4 border-${color}-400`;
+            ? `summary-card goal-setting-card bg-white border-l-4 border-gray-400 ${heightClass}`
+            : `summary-card bg-white border-l-4 border-${color}-400 ${heightClass}`;
 
         return (
             <div className={`${cardClass} p-5 rounded-xl shadow-lg transition duration-300 hover:shadow-xl`}>
@@ -143,6 +166,13 @@ const CalorieManagementPage = () => {
             gap: 1.5rem;
         }
         
+        /* 특수 레이아웃: 달성일수 카드 2개를 하나의 열에 배치 */
+        .achievement-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem; /* 카드 사이 간격 */
+        }
+
         /* 기본 카드 스타일 */
         .summary-card {
             background-color: var(--color-white);
@@ -152,6 +182,7 @@ const CalorieManagementPage = () => {
             transition: transform 0.2s;
             position: relative;
             overflow: hidden;
+            flex-grow: 1; /* 스택 내에서 높이 채우기 */
         }
         
         /* 목표 설정 카드 스타일 */
@@ -241,6 +272,9 @@ const CalorieManagementPage = () => {
             .summary-grid {
                 grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             }
+            .achievement-stack {
+                grid-column: span 1; /* 2열 레이아웃에서 한 컬럼 차지 */
+            }
         }
         @media (max-width: 600px) {
             /* 모바일에서는 1열 */
@@ -252,6 +286,9 @@ const CalorieManagementPage = () => {
             }
             .card-value .unit {
                 font-size: 1rem;
+            }
+            .achievement-stack {
+                gap: 1rem;
             }
         }
     `;
@@ -267,6 +304,7 @@ const CalorieManagementPage = () => {
                 
                 {/* 1. 목표 및 주간 칼로리 요약 영역 */}
                 <div className="summary-grid">
+                    
                     {/* 1-1. 목표 칼로리 카드 (액션) */}
                     <div className="summary-card goal-setting-card">
                         <div className="card-title">일일 목표 칼로리</div>
@@ -297,25 +335,49 @@ const CalorieManagementPage = () => {
                         </div>
                     </div>
 
-                    {/* 1-2. 주간 목표 달성일 수 카드 (KPI: High-level success) - 두 번째로 배치 */}
-                    <StatCard 
-                        title="주간 목표 달성일 수"
-                        value={calories.filter(cal => cal <= goalCalories * 1.1 && cal >= goalCalories * 0.9).length}
-                        unit="/ 7일"
-                        color="yellow"
-                        isGoalSetting={false}
-                    />
+                    {/* 1-2. 주간/월간 목표 달성일 수 카드 (스택으로 결합) */}
+                    <div className="achievement-stack">
+                        {/* 주간 달성일 수 */}
+                        <StatCard 
+                            title="주간 목표 달성일 수"
+                            value={weeklyAchievedDays}
+                            unit="/ 7일"
+                            color="yellow"
+                            isGoalSetting={false}
+                        />
+                        {/* 월간 달성일 수 */}
+                        <StatCard 
+                            title="월간 목표 달성일 수"
+                            value={monthlyAchievedDays}
+                            unit="/ 30일"
+                            color="orange"
+                            isGoalSetting={false}
+                        />
+                    </div>
                     
-                    {/* 1-3. 주간 평균 섭취 칼로리 카드 (KPI: Data) - 세 번째로 배치 */}
-                    <StatCard 
-                        title="주간 평균 섭취 칼로리"
-                        value={avgCalories}
-                        unit="kcal"
-                        color="green"
-                        isGoal={true}
-                        goalValue={goalCalories}
-                        isGoalSetting={false}
-                    />
+                    {/* 1-3. 주간/일간 평균 섭취 칼로리 카드 (스택으로 결합) */}
+                    <div className="achievement-stack">
+                        {/* 주간 평균 섭취 칼로리 */}
+                        <StatCard 
+                            title="주간 평균 섭취 칼로리"
+                            value={avgCalories}
+                            unit="kcal"
+                            color="green"
+                            isGoal={true}
+                            goalValue={goalCalories}
+                            isGoalSetting={false}
+                        />
+                        {/* 일간 섭취 칼로리 (오늘) */}
+                        <StatCard 
+                            title="오늘 섭취 칼로리"
+                            value={todayCalories}
+                            unit="kcal"
+                            color="teal"
+                            isGoal={true}
+                            goalValue={goalCalories}
+                            isGoalSetting={false}
+                        />
+                    </div>
                 </div>
 
                 {/* 2. 주요 영양소 주간 평균 영역 */}

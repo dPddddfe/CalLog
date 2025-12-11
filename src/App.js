@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react'; 
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import WeeklyCalendarPage from './pages/WeeklyCalendarPage';
@@ -100,6 +100,7 @@ const MacroDoughnutChart = ({ meals }) => {
 
   return (
     <div className="chart-wrapper">
+      <div className="section-header">매크로 영양소 비율</div> {/* 헤더 추가 */}
       <div className="chart-container">
         <Doughnut data={data} options={options} />
       </div>
@@ -122,6 +123,66 @@ const MacroDoughnutChart = ({ meals }) => {
 
 // --- 메인 페이지 컴포넌트 ---
 const TodayDietPage = () => {
+  // --- 타이머 기능 상태 및 로직 시작 ---
+  const [isFasting, setIsFasting] = useState(false);
+  const [fastStartTime, setFastStartTime] = useState(null);
+  const [fastElapsed, setFastElapsed] = useState(0);
+
+  // 저장된 단식 기록 불러오기 
+  useEffect(() => {
+    const saved = localStorage.getItem("fastRecord");
+    if (saved) setFastElapsed(Number(saved));
+    const savedRunning = localStorage.getItem("fastRunning");
+    const savedStart = localStorage.getItem("fastStartTime");
+    if (savedRunning === 'true' && savedStart) {
+      setFastStartTime(Number(savedStart));
+      setIsFasting(true);
+    }
+  }, []);
+
+  // 실시간 타이머 작동
+  useEffect(() => {
+    let interval = null;
+    if (isFasting) {
+      interval = setInterval(() => {
+        // fastStartTime이 설정되지 않았다면 현재 시간 사용
+        setFastElapsed(Date.now() - (fastStartTime || Date.now()));
+      }, 1000);
+      localStorage.setItem("fastRunning", 'true');
+      if (fastStartTime) localStorage.setItem("fastStartTime", String(fastStartTime));
+    } else {
+      localStorage.setItem("fastRunning", 'false');
+    }
+    return () => clearInterval(interval);
+  }, [isFasting, fastStartTime]);
+
+  // 타이머 시작
+  const startFasting = () => {
+    const now = Date.now();
+    setFastStartTime(now);
+    setIsFasting(true);
+    localStorage.setItem("fastStartTime", String(now));
+    localStorage.setItem("fastRunning", 'true');
+  };
+
+  // 타이머 종료
+  const stopFasting = () => {
+    setIsFasting(false);
+    localStorage.setItem("fastRecord", String(fastElapsed));
+    localStorage.setItem("fastRunning", 'false');
+  };
+
+  // 포맷 헬퍼: ms -> HH:MM:SS
+  const formatElapsed = (ms) => {
+    const totalSec = Math.floor(ms / 1000);
+    const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+    const s = String(totalSec % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
+  // --- 타이머 기능 상태 및 로직 끝 ---
+
+
   // 수정 기능을 위한 상태
 const [editingId, setEditingId] = useState(null);
 const [editMeal, setEditMeal] = useState({ name: '', calories: '', carbs: '', sugar: '' });
@@ -269,132 +330,137 @@ const handleEditSave = () => {
       {/* 좌측 패널 - 모든 콘텐츠 포함 */}
       <div className="left-panel">
         {/* 상단: 요약 카드들 */}
-        <div className="summary-section">
-          {/* 왼쪽: 오늘 칼로리 요약 */}
-          <div className="section-header">오늘 총 섭취 칼로리</div>
-          <div className="summary-card">
-            <div className="summary-value">{totalCalories} kcal</div>
-  
-            <div className="summary-sub">목표 {goalCalories} kcal 기준</div>
-  
-            <div className="summary-goal-row">
-              <input
-                type="number"
-                value={goalCalories}
-                onChange={(e) => handleGoalCaloriesChange(e.target.value)} // 수정!
-                className="goal-input"
-              />
-              <span className="summary-goal-unit">kcal</span>
-            </div>
-  
-            <div className="summary-sub">
-              {remainingCalories >= 0
-                ? `남은 칼로리: ${remainingCalories} kcal`
-                : `초과 칼로리: ${Math.abs(remainingCalories)} kcal`}
-            </div>
-          </div>
-  
-          {/* 오른쪽: 개인 맞춤 목표 설정 */}
-          <div className="summary-section"></div>
-            <div className="section-header">개인 맞춤 목표 설정</div>
-            <div className="summary-right">
+        <div className="summary-section-wrapper-vertical"> 
 
-              {/* 성별 선택 */}
-              <div className="summary-right-row">
-                <label>
-                  성별
-                  <select
-                    className="summary-select"
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                  >
-                    <option value="male">남성</option>
-                    <option value="female">여성</option>
-                  </select>
-                </label>
-              </div>
-
-              {/* 나이 입력 */}
-              <div className="summary-right-row">
-                <label>
-                  나이
-                  <input
-                    type="number"
-                    className="summary-input"
-                    value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                    placeholder="세"
-                  />
-                  <span className="summary-input-unit">세</span>
-                </label>
-              </div>
-
-              <div className="summary-right-row">
-                <label>
-                  키
-                  <input
-                    type="number"
-                    className="summary-input"
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                    placeholder="cm"
-                  />
-                  <span className="summary-input-unit">cm</span>
-                </label>
+          {/* 1. 오늘 총 섭취 칼로리 (위) */}
+          <div className="summary-section-full-width">
+            <div className="section-header">오늘 총 섭취 칼로리</div>
+            <div className="summary-card">
+              <div className="summary-value">{totalCalories} kcal</div>
+    
+              <div className="summary-sub">목표 {goalCalories} kcal 기준</div>
+    
+              <div className="summary-goal-row">
+                <input
+                  type="number"
+                  value={goalCalories}
+                  onChange={(e) => handleGoalCaloriesChange(e.target.value)}
+                  className="goal-input"
+                />
+                <span className="summary-goal-unit">kcal</span>
               </div>
     
-              <div className="summary-right-row">
-                <label>
-                  현재 몸무게
-                  <input
-                    type="number"
-                    className="summary-input"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    placeholder="kg"
-                  />
-                  <span className="summary-input-unit">kg</span>
-                </label>
+              <div className="summary-sub">
+                {remainingCalories >= 0
+                  ? `남은 칼로리: ${remainingCalories} kcal`
+                  : `초과 칼로리: ${Math.abs(remainingCalories)} kcal`}
               </div>
-    
-              <div className="summary-right-row">
-                <label>
-                  목표 몸무게
-                  <input
-                    type="number"
-                    className="summary-input"
-                    value={targetWeight}
-                    onChange={(e) => setTargetWeight(e.target.value)}
-                    placeholder="kg"
-                  />
-                  <span className="summary-input-unit">kg</span>
-                </label>
-              </div>
-    
-              <div className="summary-right-row">
-                <label>
-                  활동량
-                  <select
-                    className="summary-select"
-                    value={activity}
-                    onChange={(e) => setActivity(e.target.value)}
-                  >
-                    <option value="low">낮음 (운동 거의 안 함)</option>
-                    <option value="medium">보통 (주 1~3회 가벼운 운동)</option>
-                    <option value="high">높음 (주 3회 이상 활동적)</option>
-                  </select>
-                </label>
-              </div>
-    
-              <button
-                type="button"
-                className="summary-button"
-                onClick={handleRecommendGoal}
-              >
-                목표 칼로리 제안하기
-              </button>
             </div>
           </div>
+  
+          {/* 2. 개인 맞춤 목표 설정 (아래로 이동) */}
+          <div className="summary-section-full-width">
+              <div className="section-header">개인 맞춤 목표 설정</div>
+              <div className="summary-right">
+  
+                {/* 성별 선택 */}
+                <div className="summary-right-row">
+                  <label>
+                    성별
+                    <select
+                      className="summary-select"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                    >
+                      <option value="male">남성</option>
+                      <option value="female">여성</option>
+                    </select>
+                  </label>
+                </div>
+  
+                {/* 나이 입력 */}
+                <div className="summary-right-row">
+                  <label>
+                    나이
+                    <input
+                      type="number"
+                      className="summary-input"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      placeholder="세"
+                    />
+                    <span className="summary-input-unit">세</span>
+                  </label>
+                </div>
+  
+                <div className="summary-right-row">
+                  <label>
+                    키
+                    <input
+                      type="number"
+                      className="summary-input"
+                      value={height}
+                      onChange={(e) => setHeight(e.target.value)}
+                      placeholder="cm"
+                    />
+                    <span className="summary-input-unit">cm</span>
+                  </label>
+                </div>
+      
+                <div className="summary-right-row">
+                  <label>
+                    현재 몸무게
+                    <input
+                      type="number"
+                      className="summary-input"
+                      value={weight}
+                      onChange={(e) => setWeight(e.target.value)}
+                      placeholder="kg"
+                    />
+                    <span className="summary-input-unit">kg</span>
+                  </label>
+                </div>
+      
+                <div className="summary-right-row">
+                  <label>
+                    목표 몸무게
+                    <input
+                      type="number"
+                      className="summary-input"
+                      value={targetWeight}
+                      onChange={(e) => setTargetWeight(e.target.value)}
+                      placeholder="kg"
+                    />
+                    <span className="summary-input-unit">kg</span>
+                  </label>
+                </div>
+      
+                <div className="summary-right-row">
+                  <label>
+                    활동량
+                    <select
+                      className="summary-select"
+                      value={activity}
+                      onChange={(e) => setActivity(e.target.value)}
+                    >
+                      <option value="low">낮음 (운동 거의 안 함)</option>
+                      <option value="medium">보통 (주 1~3회 가벼운 운동)</option>
+                      <option value="high">높음 (주 3회 이상 활동적)</option>
+                    </select>
+                  </label>
+                </div>
+      
+                <button
+                  type="button"
+                  className="summary-button"
+                  onClick={handleRecommendGoal}
+                >
+                  목표 칼로리 제안하기
+                </button>
+              </div>
+            </div>
+        </div>
+
   
         {/* 목록 */}
         <div className="section-header">목록</div>
@@ -501,64 +567,54 @@ const handleEditSave = () => {
         </div>
       </div>
   
-      {/* 우측: 도넛 차트 */}
+      {/* 우측 패널 */}
       <div className="right-panel">
-        <MacroDoughnutChart meals={meals} />
+        <div className="right-panel-content">
+          {/* 1. 단식 타이머: 그래프 위에 보이도록 우측 패널 상단에 배치 */}
+          <div className="summary-section" style={{ width: '100%', marginBottom: '12px' }}>
+            <div className="section-header">단식 타이머</div>
+
+            <div className="summary-card fasting-timer-card">
+              <div className="summary-value" style={{ fontSize: '1.4rem' }}>
+                {formatElapsed(fastElapsed)}
+              </div>
+              <div className="summary-sub">
+                오늘 단식 진행 시간
+              </div>
+
+              {!isFasting ? (
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  <button className="summary-button" onClick={startFasting}>
+                    단식 시작
+                  </button>
+                  {/* 재시작: 로컬에 저장된 값을 초기화하고 다시 시작하고 싶을 때 사용 */}
+                  <button className="summary-button delete" onClick={() => {
+                    setFastElapsed(0);
+                    setFastStartTime(null);
+                    localStorage.removeItem("fastRecord");
+                    localStorage.removeItem("fastStartTime");
+                  }}>
+                    기록 초기화
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  <button className="summary-button delete" onClick={stopFasting}>
+                    단식 종료
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. 매크로 영양소 차트 */}
+          <MacroDoughnutChart meals={meals} />
+        </div>
       </div>
     </div>
   );
 };
 
-
-// --- 3. 기타 페이지 컴포넌트 (Placeholder) ---
-/*
-const CaloriePage = () => (
-  <div className="placeholder-page-wrapper">
-    <div className="placeholder-page-box sky-theme">
-      <h2 className="placeholder-title">
-        <BarChart2 className="placeholder-icon" /> 칼로리 관리 (Calorie Management)
-      </h2>
-      <p className="placeholder-text">
-        이 페이지에서는 주간/월간 칼로리 섭취 패턴을 시각적으로 보여주는 차트와 상세 분석 리포트가 표시될 예정입니다.
-      </p>
-      <div className="placeholder-visual">
-        <p>[데이터 시각화 그래프 Placeholder]</p>
-      </div>
-    </div>
-  </div>
-);
-
-const WeeklyCalendarPage = () => (
-  <div className="placeholder-page-wrapper">
-    <div className="placeholder-page-box lime-theme">
-      <h2 className="placeholder-title">
-        <Calendar className="placeholder-icon" /> 주별 달력 (Weekly Calendar)
-      </h2>
-      <p className="placeholder-text">
-        이 페이지는 달력 형태로 주간 목표 달성률, 주요 기록 등을 확인할 수 있는 아카이브 역할을 할 것입니다.
-      </p>
-      <div className="placeholder-visual">
-        <p>[주별 달력 및 기록 Placeholder]</p>
-      </div>
-    </div>
-  </div>
-);
-
-const MonthlyCalendarPage = () => (
-  <div className="placeholder-page-wrapper">
-    <div className="placeholder-page-box lime-theme">
-      <h2 className="placeholder-title">
-        <Calendar className="placeholder-icon" /> 월별 달력 (Monthly Calendar)
-      </h2>
-      <p className="placeholder-text">
-        이 페이지는 달력 형태로 월별 목표 달성률, 주요 기록 등을 확인할 수 있는 아카이브 역할을 할 것입니다.
-      </p>
-      <div className="placeholder-visual">
-        <p>[월별 달력 및 기록 Placeholder]</p>
-      </div>
-    </div>
-  </div>
-); */
 
 
 // --- 4. 메인 애플리케이션 컴포넌트 ---
@@ -623,7 +679,7 @@ const App = () => {
     }
 
     .main-content {
-        max-width: 1200px;
+        max-width: 1000px; /* **1. 최대 너비 1200px에서 1000px로 조정** */
         margin: 0 auto;
         padding: 1rem;
     }
@@ -640,7 +696,7 @@ const App = () => {
     }
 
     .header-content-wrapper {
-        max-width: 1200px;
+        max-width: 1000px; /* **1. 헤더 콘텐츠 너비도 조정** */
         margin: 0 auto;
         padding: 0 1rem;
         display: flex;
@@ -697,18 +753,168 @@ const App = () => {
     .left-panel {
         flex: 2; 
         min-width: 300px; 
+        max-width: 650px; /* **2. 좌측 패널 최대 너비 지정** */
     }
 
     .right-panel {
         flex: 1; 
         min-width: 250px; 
         display: flex;
-        justify-content: center;
+        flex-direction: column; 
+        justify-content: flex-start;
         align-items: center;
         background-color: var(--color-item-bg); 
         border-radius: 20px;
         box-shadow: 0 5px 15px var(--color-shadow-light);
         padding: 20px;
+    }
+
+    .right-panel-content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .summary-section-wrapper-vertical { 
+      display: flex;
+      flex-direction: column; 
+      gap: 20px;
+      width: 100%;
+    }
+
+    .summary-section-full-width { 
+      flex: none; 
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .summary-section {
+      flex: 1;
+      min-width: 48%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .summary-card {
+        background-color: var(--color-white);
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 2px 8px var(--color-shadow-light);
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .fasting-timer-card {
+      text-align: center;
+      align-items: center;
+      padding: 15px;
+    }
+
+    .summary-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: var(--color-dark-green);
+    }
+
+    .summary-sub {
+        font-size: 0.9rem;
+        color: var(--color-text-light);
+    }
+
+    .summary-goal-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .goal-input {
+      width: 80px;
+      padding: 5px;
+      border: 1px solid var(--color-border-light);
+      border-radius: 8px;
+      text-align: right;
+      font-size: 1rem;
+    }
+
+    .summary-goal-unit {
+        font-weight: bold;
+    }
+
+    .summary-right {
+        background-color: var(--color-white);
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 2px 8px var(--color-shadow-light);
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .summary-right-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1rem;
+    }
+
+    .summary-right-row label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .summary-input {
+      width: 80px;
+      padding: 5px;
+      border: 1px solid var(--color-border-light);
+      border-radius: 8px;
+      text-align: right;
+      font-size: 1rem;
+      margin-left: 10px;
+    }
+    
+    .summary-select {
+        padding: 5px;
+        border: 1px solid var(--color-border-light);
+        border-radius: 8px;
+        font-size: 1rem;
+        margin-left: 10px;
+        max-width: 150px;
+    }
+    
+    .summary-input-unit {
+        margin-left: 5px;
+        font-size: 0.9rem;
+        color: var(--color-text-light);
+    }
+
+    .summary-button {
+      background-color: var(--color-light-green);
+      color: var(--color-text-dark);
+      font-weight: bold;
+      padding: 10px 15px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      font-size: 1rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .summary-button.delete {
+      background-color: #F44336; /* 붉은색 */
+      color: var(--color-white);
     }
 
     /* 섹션 헤더 (목록, 음식 추가) */
@@ -736,29 +942,33 @@ const App = () => {
     }
 
     .meal-item-card {
-        background-color: var(--color-item-bg); 
+        background-color: var(--color-white); /* 배경색 변경 */
         padding: 15px 20px;
         border-radius: 15px; 
         box-shadow: 0 2px 8px var(--color-shadow-light);
         display: flex;
         align-items: center;
         font-size: 1.1rem;
+        gap: 10px;
     }
 
     .meal-name {
         font-weight: bold;
-        min-width: 80px; 
+        flex-grow: 1; /* 이름이 공간을 최대한 차지하도록 */
     }
 
     .meal-calories {
         min-width: 80px; 
         color: var(--color-text-light);
         font-weight: 500;
+        text-align: right;
     }
 
     .meal-macros {
         color: var(--color-text-light);
         font-size: 0.95rem;
+        min-width: 100px;
+        text-align: right;
     }
 
     /* 음식 추가 섹션 */
@@ -806,6 +1016,11 @@ const App = () => {
         font-size: 1rem;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
+    
+    .add-button.delete {
+        background-color: #F44336; /* 붉은색 */
+        color: var(--color-white);
+    }
 
     .add-button:hover {
         background-color: #8CCF6F;
@@ -820,8 +1035,8 @@ const App = () => {
         align-items: center;
         gap: 1.5rem;
         width: 100%;
-        max-width: 350px; 
-        padding: 20px;
+        max-width: 400px; /* 차트의 최대 크기 조정 */
+        padding: 20px 0 0 0;
     }
 
     .chart-container {
@@ -833,7 +1048,7 @@ const App = () => {
     /* 차트 범례 */
     .chart-legend {
         display: flex;
-        gap: 1rem;
+        gap: 1.5rem;
         margin-top: 1rem;
         font-size: 0.95rem;
         flex-wrap: wrap; 
@@ -864,60 +1079,18 @@ const App = () => {
     .placeholder-page-wrapper {
         max-width: 900px;
         margin: 2rem auto;
-        padding: 0 1rem;
-    }
-
-    .placeholder-page-box {
-        padding: 40px;
-        border-radius: 24px;
-        box-shadow: 0 10px 20px var(--color-shadow-light);
+        padding: 3rem; /* 여백 추가 */
+        font-size: 1.5rem; /* 글자 크기 키움 */
         text-align: center;
-    }
-
-    .sky-theme {
-        background-color: #E3F2FD; 
-        border: 1px solid #90CAF9;
-    }
-
-    .lime-theme {
-        background-color: #F1F8E9; 
-        border: 1px solid #C5E1A5;
-    }
-
-    .placeholder-title {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #1565C0;
-        margin-bottom: 1rem;
+        border: 2px dashed var(--color-light-green); /* 테두리 추가 */
+        border-radius: 15px;
+        background-color: var(--color-white);
+        min-height: 400px;
         display: flex;
-        align-items: center;
         justify-content: center;
-    }
-
-    .lime-theme .placeholder-title {
-        color: #558B2F;
-    }
-
-    .placeholder-icon {
-        width: 32px;
-        height: 32px;
-        margin-right: 8px;
-        stroke: currentColor; 
-    }
-
-    .placeholder-text {
-        color: #666;
-        font-size: 1.125rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .placeholder-visual {
-        background-color: white;
-        padding: 1rem;
-        border-radius: 12px;
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
-        border: 1px solid #f0f0f0;
-        color: #aaa;
+        align-items: center;
+        color: var(--color-dark-green);
+        font-weight: bold;
     }
 
     /* ** 반응형 조정 ** */
