@@ -6,7 +6,10 @@ import MonthlyCalendarPage from './pages/MonthlyCalendarPage';
 import CalorieManagementPage from './pages/CalorieManagement'; 
 
 import './App.css'; 
+import { fetchNutritionFromEdamam } from './api/edamam';
 
+console.log("EDAMAM ID:", process.env.REACT_APP_EDAMAM_ID);
+console.log("EDAMAM KEY:", process.env.REACT_APP_EDAMAM_KEY);
 // Chart.js 모듈 등록
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -66,11 +69,32 @@ const Header = ({ currentPage, setCurrentPage }) => {
 
 // --- 도넛 차트 컴포넌트 ---
 const MacroDoughnutChart = ({ meals }) => {
+  // 1) 안전하게 기본값 처리
+  const safeMeals = Array.isArray(meals) ? meals : [];
+
+  // 2) 각 영양소 합계 계산 (현재는 carbs, sugar만 있으니까 단백질은 0으로)
+  const totalSugar = safeMeals.reduce((sum, meal) => sum + (meal.sugar || 0), 0);
+  const totalCarbs = safeMeals.reduce((sum, meal) => sum + (meal.carbs || 0), 0);
+  const totalProtein = safeMeals.reduce((sum, meal) => sum + (meal.protein || 0), 0); // 나중에 protein 필드 추가할 때 사용
+
+  // 3) 비율 계산을 위해 총합 구하기
+  const total = totalSugar + totalCarbs + totalProtein;
+
+  // 4) 차트에 넣을 데이터 (총합이 0이면 0,0,0)
+  const chartValues =
+    total > 0
+      ? [
+          Math.round((totalSugar / total) * 100),
+          Math.round((totalCarbs / total) * 100),
+          Math.round((totalProtein / total) * 100),
+        ]
+      : [0, 0, 0];
+
   const data = {
     labels: ['당류', '탄수화물', '단백질'],
     datasets: [
       {
-        data: [30, 30, 30], // 이미지에 표시된 30, 30, 30 비율에 맞춤
+        data: chartValues, 
         backgroundColor: [
           '#66BB6A', // 연두색 계열 (당류)
           '#4DB6AC', // 청록색 계열 (탄수화물)
@@ -90,8 +114,8 @@ const MacroDoughnutChart = ({ meals }) => {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: function(context) {
-            return `${context.label}: ${context.parsed}%`; 
+          label: function (context) {
+            return `${context.label}: ${context.parsed}%`;
           }
         }
       }
@@ -222,12 +246,17 @@ const handleEditSave = () => {
 };
 
   const [meals, setMeals] = useState(initialMeals);
-  const [newMeal, setNewMeal] = useState({ name: '', calories: '', carbs: '', sugar: '' });
+  const [newMeal, setNewMeal] = useState({ name: '', calories: '', carbs: '', sugar: '', protein: '' });
+  // 🔹 Edamam API 호출 중인지 표시하는 플래그
+  const [isFetchingNutrition, setIsFetchingNutrition] = useState(false);
   const nextId = useRef(initialMeals.length + 1);
   const [goalCalories, setGoalCalories] = useState(() => {
     const saved = localStorage.getItem('goalCalories');
     return saved ? Number(saved) : 1800; // 저장된 값 또는 기본값 1800
   });
+
+  
+
 
   // 키/몸무게/활동량 상태
   const [height, setHeight] = useState('');        // cm
@@ -317,13 +346,44 @@ const handleEditSave = () => {
           calories: parseInt(newMeal.calories),
           carbs: parseInt(newMeal.carbs || 0),
           sugar: parseInt(newMeal.sugar || 0),
+          protein: parseInt(newMeal.protein || 0),
         },
       ]);
       setNewMeal({ name: '', calories: '', carbs: '', sugar: '' });
     }
   };
 
-
+    // Edamam에서 영양 정보 가져오기
+    const handleFetchNutrition = async () => {
+      if (!newMeal.name || !newMeal.name.trim()) {
+        alert('먼저 음식 이름을 입력해 주세요!\n예: "1 apple", "100g chicken"');
+        return;
+      }
+  
+      try {
+        setIsFetchingNutrition(true);
+  
+        // newMeal.name → Edamam API로 요청
+        const result = await fetchNutritionFromEdamam(newMeal.name);
+        console.log("[App] Edamam result:", result);
+        // result = { calories, carbs, sugar, protein }
+  
+        // newMeal 상태에 응답 값 채워넣기
+        setNewMeal((prev) => ({
+          ...prev,
+          calories: result.calories,
+          carbs: result.carbs,
+          sugar: result.sugar,
+          protein: result.protein,
+        }));
+      } catch (error) {
+        console.error(error);
+        alert('영양 정보를 가져오지 못했어요. 이름/단위 표현을 한 번만 더 확인해 주세요.');
+      } finally {
+        setIsFetchingNutrition(false);
+      }
+    };
+  
 
   return (
     <div className="today-diet-layout">
@@ -532,35 +592,49 @@ const handleEditSave = () => {
           <input
             type="text"
             name="name"
-            placeholder="이름"
+            placeholder='먹은 음식과 양을 적어주세요 (예: "1 apple", "100g chicken breast")'
             value={newMeal.name}
             onChange={handleInputChange}
             className="add-input"
           />
+          <p style={{ fontSize: '0.85rem', color: '#777', marginTop: '4px' }}>
+            영양 정보는 Edamam API를 사용해 계산돼요. 수량 + 단위 + 음식명 조합의 
+            영어로 입력해 주세요. (예: 1 apple, 100g chicken breast)
+          </p>
           <input
             type="number"
             name="calories"
-            placeholder="kal"
+            placeholder="kcal"
             value={newMeal.calories}
-            onChange={handleInputChange}
+            readOnly
             className="add-input small-input"
           />
           <input
             type="number"
             name="carbs"
-            placeholder="탄수화물-"
+            placeholder="탄수화물(g)"
             value={newMeal.carbs}
-            onChange={handleInputChange}
+            readOnly
             className="add-input"
           />
           <input
             type="number"
             name="sugar"
-            placeholder="당류-"
+            placeholder="당류(g)"
             value={newMeal.sugar}
-            onChange={handleInputChange}
+            readOnly
             className="add-input"
           />
+          {/* 🔹 Edamam API 호출 버튼 */}
+          <button
+            type="button"
+            onClick={handleFetchNutrition}
+            className="add-button"
+            disabled={isFetchingNutrition}
+          >
+            {isFetchingNutrition ? '불러오는 중...' : '영양 정보 가져오기'}
+          </button>
+
           <button onClick={handleAddMeal} className="add-button">
             추가
           </button>
