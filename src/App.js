@@ -570,7 +570,7 @@ const handleEditSave = () => {
           <span className="meal-name">{meal.name}</span>
           <span className="meal-calories">{meal.calories} kcal</span>
           <span className="meal-macros">
-            탄수화물-{meal.carbs} 당류-{meal.sugar}
+            탄수화물-{meal.carbs} 단백질-{meal.protein} 당류-{meal.sugar}
           </span>
 
           <button className="add-button" onClick={() => handleEditStart(meal)}>
@@ -614,6 +614,14 @@ const handleEditSave = () => {
             name="carbs"
             placeholder="탄수화물(g)"
             value={newMeal.carbs}
+            readOnly
+            className="add-input"
+          />
+          <input
+            type="number"
+            name="protein"
+            placeholder="단백질(g)"
+            value={newMeal.sugar}
             readOnly
             className="add-input"
           />
