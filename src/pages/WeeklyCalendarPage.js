@@ -38,7 +38,7 @@ const WeeklyCalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   // localStorage에서 목표 칼로리 불러오기
-  const [goalCalories, setGoalCalories] = useState(() => {
+  const [goalCalories] = useState(() => {
     const saved = localStorage.getItem('goalCalories');
     return saved ? Number(saved) : 2000;
   });
