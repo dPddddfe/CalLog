@@ -1,0 +1,59 @@
+{
+    "meals": [
+      {
+        "id": 1,
+        "date": "2025-12-15",
+        "name": "apple",
+        "calories": 95,
+        "carbs": 25,
+        "sugar": 19,
+        "protein": 0
+      },
+      {
+        "id": 2,
+        "date": "2025-12-15",
+        "name": "banana",
+        "calories": 105,
+        "carbs": 27,
+        "sugar": 14,
+        "protein": 1
+      },
+      {
+        "id": 3,
+        "date": "2025-12-15",
+        "name": "grilled chicken breast",
+        "calories": 165,
+        "carbs": 0,
+        "sugar": 0,
+        "protein": 31
+      },
+      {
+        "id": 4,
+        "date": "2025-12-14",
+        "name": "white rice",
+        "calories": 200,
+        "carbs": 45,
+        "sugar": 0,
+        "protein": 4
+      },
+      {
+        "id": 5,
+        "date": "2025-12-14",
+        "name": "fried egg",
+        "calories": 90,
+        "carbs": 1,
+        "sugar": 0,
+        "protein": 6
+      },
+      {
+        "id": 6,
+        "date": "2025-12-13",
+        "name": "milk",
+        "calories": 120,
+        "carbs": 12,
+        "sugar": 11,
+        "protein": 8
+      }
+    ]
+  }
+  
