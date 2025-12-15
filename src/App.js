@@ -8,6 +8,48 @@ import CalorieManagementPage from './pages/CalorieManagement';
 import './App.css'; 
 import { fetchNutritionFromEdamam } from './api/edamam';
 
+const MOCK_API_URL = "https://693f646312c964ee6b6fcad6.mockapi.io/meals";
+
+// 1. Mock API에서 식단 목록을 가져오는 함수 추가
+async function fetchMealsFromMockApi() {
+  const res = await fetch(MOCK_API_URL);
+
+  if (!res.ok) {
+    throw new Error('Mock API 불러오기 실패');
+  }
+
+  // API에서 가져온 데이터는 ID가 문자열일 수 있으므로 숫자로 변환합니다.
+  const meals = await res.json();
+  return meals.map(meal => ({
+    ...meal,
+    id: Number(meal.id), // ID를 숫자로 변환
+    calories: Number(meal.calories),
+    carbs: Number(meal.carbs || 0),
+    sugar: Number(meal.sugar || 0),
+    protein: Number(meal.protein || 0),
+  }));
+}
+
+
+async function saveMealToMockApi(meal) {
+  const res = await fetch(
+    MOCK_API_URL, // 상수 MOCK_API_URL 사용
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(meal),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error('Mock API 저장 실패');
+  }
+
+
+  return res.json();
+}
 console.log("EDAMAM ID:", process.env.REACT_APP_EDAMAM_ID);
 console.log("EDAMAM KEY:", process.env.REACT_APP_EDAMAM_KEY);
 // Chart.js 모듈 등록
@@ -22,12 +64,13 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 
 
 
-// --- 기본 데이터 구조 ---
-const initialMeals = [
-  { id: 1, name: '사과', calories: 60, carbs: 30, sugar: 2 },
-  { id: 2, name: '고구마', calories: 60, carbs: 30, sugar: 2 },
-  { id: 3, name: '상추', calories: 60, carbs: 30, sugar: 2 },
-];
+// --- 기본 데이터 구조 (Mock API 연결을 위해 빈 배열로 변경) ---
+// const initialMeals = [
+//   { id: 1, name: '사과', calories: 60, carbs: 30, sugar: 2 },
+//   { id: 2, name: '고구마', calories: 60, carbs: 30, sugar: 2 },
+//   { id: 3, name: '상추', calories: 60, carbs: 30, sugar: 2 },
+// ];
+const initialMeals = []; // Mock API 연결을 위해 초기값은 빈 배열로 설정
 
 // --- 1. 헤더 및 네비게이션 컴포넌트 ---
 const Header = ({ currentPage, setCurrentPage }) => {
@@ -138,9 +181,9 @@ const MacroDoughnutChart = ({ meals }) => {
   );
 };
 
-
 // --- 메인 페이지 컴포넌트 ---
 const TodayDietPage = () => {
+  
   // --- 타이머 기능 상태 및 로직 시작 ---
   const [isFasting, setIsFasting] = useState(false);
   const [fastStartTime, setFastStartTime] = useState(null);
@@ -205,9 +248,42 @@ const TodayDietPage = () => {
 const [editingId, setEditingId] = useState(null);
 const [editMeal, setEditMeal] = useState({ name: '', calories: '', carbs: '', sugar: '' });
 
-// 삭제 처리
-const handleDelete = (id) => {
-  setMeals(meals.filter((meal) => meal.id !== id));
+// 2. Mock API에서 식단을 삭제하는 함수
+const deleteMealFromMockApi = async (id) => {
+  const res = await fetch(`${MOCK_API_URL}/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    throw new Error('Mock API 삭제 실패');
+  }
+  return res.json();
+};
+
+// 3. Mock API에서 식단을 업데이트하는 함수
+const updateMealOnMockApi = async (id, updatedMeal) => {
+  const res = await fetch(`${MOCK_API_URL}/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updatedMeal),
+  });
+  if (!res.ok) {
+    throw new Error('Mock API 업데이트 실패');
+  }
+  return res.json();
+};
+
+
+// 삭제 처리 (Mock API 연동)
+const handleDelete = async (id) => {
+  try {
+    await deleteMealFromMockApi(id);
+    setMeals(meals.filter((meal) => meal.id !== id));
+  } catch (e) {
+    console.error(e);
+    alert("삭제에 실패했습니다.");
+  }
 };
 
 // 수정 시작: 기존 값 입력창에 로드
@@ -222,34 +298,72 @@ const handleEditChange = (e) => {
   setEditMeal((prev) => ({ ...prev, [name]: value }));
 };
 
-// 수정 저장
-const handleEditSave = () => {
-  setMeals((prev) =>
-    prev.map((meal) =>
-      meal.id === editingId
-        ? {
-            ...editMeal,
-            calories: Number(editMeal.calories),
-            carbs: Number(editMeal.carbs),
-            sugar: Number(editMeal.sugar),
-          }
-        : meal
-    )
-  );
-  setEditingId(null);
+// 수정 저장 (Mock API 연동)
+const handleEditSave = async () => {
+  const updatedData = {
+    name: editMeal.name,
+    calories: Number(editMeal.calories),
+    carbs: Number(editMeal.carbs || 0),
+    sugar: Number(editMeal.sugar || 0),
+    protein: Number(editMeal.protein || 0),
+    // date 필드는 그대로 유지
+  };
+
+  try {
+    // API 업데이트
+    await updateMealOnMockApi(editingId, updatedData);
+
+    // 로컬 상태 업데이트
+    setMeals((prev) =>
+      prev.map((meal) =>
+        meal.id === editingId
+          ? { id: editingId, ...updatedData } // ID는 기존 ID 사용
+          : meal
+      )
+    );
+    setEditingId(null);
+  } catch (e) {
+    console.error(e);
+    alert("수정에 실패했습니다.");
+  }
 };
 
-  const [meals, setMeals] = useState(initialMeals);
+
+  const [meals, setMeals] = useState(initialMeals); // 초기값은 빈 배열
+  const [isLoading, setIsLoading] = useState(true); // 로딩 상태 추가
   const [newMeal, setNewMeal] = useState({ name: '', calories: '', carbs: '', sugar: '', protein: '' });
   // 🔹 Edamam API 호출 중인지 표시하는 플래그
   const [isFetchingNutrition, setIsFetchingNutrition] = useState(false);
-  const nextId = useRef(initialMeals.length + 1);
+  // nextId는 Mock API에서 가져온 데이터의 ID를 기준으로 설정합니다.
+  const nextId = useRef(0); // Mock API ID는 문자열 또는 숫자로 사용되므로, 여기서는 임시로 0으로 설정
+
   const [goalCalories, setGoalCalories] = useState(() => {
     const saved = localStorage.getItem('goalCalories');
     return saved ? Number(saved) : 1800; // 저장된 값 또는 기본값 1800
   });
 
   
+  // 4. 컴포넌트 마운트 시 Mock API에서 데이터 불러오기
+  useEffect(() => {
+    const loadMeals = async () => {
+      try {
+        const fetchedMeals = await fetchMealsFromMockApi();
+        setMeals(fetchedMeals);
+
+        // 가장 큰 ID를 찾아 nextId의 기준으로 사용 (Mock API ID가 문자열일 수도 있으므로, 이 부분은 POST 시 Mock API가 ID를 할당해주는 것으로 가정하고 nextId는 사용하지 않습니다. 다만, 기존 로직 유지를 위해 useRef를 업데이트합니다.)
+        const maxId = fetchedMeals.reduce((max, meal) => Math.max(max, Number(meal.id)), 0);
+        nextId.current = maxId + 1;
+
+      } catch (error) {
+        console.error("식단 불러오기 실패:", error);
+        alert("기존 식단 정보를 불러오는 데 실패했습니다.");
+        setMeals(initialMeals); // 실패 시 초기값(빈 배열) 설정
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadMeals();
+  }, []); // 빈 배열: 컴포넌트 마운트 시 한 번만 실행
 
 
   // 키/몸무게/활동량 상태
@@ -329,26 +443,53 @@ const handleEditSave = () => {
     const { name, value } = e.target;
     setNewMeal((prev) => ({ ...prev, [name]: value }));
   };
+  
+  // 음식 추가 로직 (Mock API에 저장 후 응답으로 ID 받아와 로컬에 추가)
+  const handleAddMeal = async () => {
+    if (!newMeal.name || !newMeal.calories) return;
+  
+    const mealData = {
+      name: newMeal.name,
+      calories: Number(newMeal.calories),
+      carbs: Number(newMeal.carbs || 0),
+      sugar: Number(newMeal.sugar || 0),
+      protein: Number(newMeal.protein || 0),
+      date: new Date().toISOString().slice(0, 10),
+    };
+  
+    // 1️⃣ Mock API에 저장
+    try {
+      // Mock API는 저장 후 새로 생성된 ID를 포함한 객체를 반환
+      const savedMeal = await saveMealToMockApi(mealData); 
 
-  const handleAddMeal = () => {
-    if (newMeal.name && newMeal.calories) {
+      // 2️⃣ 화면에 추가 (API에서 받은 ID 사용)
       setMeals((prev) => [
         ...prev,
-        {
-          id: nextId.current++,
-          name: newMeal.name,
-          calories: parseInt(newMeal.calories),
-          carbs: parseInt(newMeal.carbs || 0),
-          sugar: parseInt(newMeal.sugar || 0),
-          protein: parseInt(newMeal.protein || 0),
+        { 
+          ...savedMeal, 
+          id: Number(savedMeal.id), // Mock API에서 반환된 ID 사용
+          calories: Number(savedMeal.calories),
+          carbs: Number(savedMeal.carbs),
+          sugar: Number(savedMeal.sugar),
+          protein: Number(savedMeal.protein)
         },
       ]);
-      setNewMeal({ name: '', calories: '', carbs: '', sugar: '' });
+      nextId.current++; // 다음 ID 준비 (안전 장치)
+  
+    } catch (e) {
+      console.error(e);
+      alert("서버 저장에 실패했습니다.");
     }
+  
+    setNewMeal({ name: '', calories: '', carbs: '', sugar: '', protein: '' });
   };
+  
 
     // Edamam에서 영양 정보 가져오기
     const handleFetchNutrition = async () => {
+      // 이 부분의 saveMealToMockApi 함수 정의는 불필요하므로 제거합니다. (전역 함수 사용)
+      // const saveMealToMockApi = async (meal) => { ... }; 
+      
       if (!newMeal.name || !newMeal.name.trim()) {
         alert('먼저 음식 이름을 입력해 주세요!\n예: "1 apple", "100g chicken"');
         return;
@@ -378,6 +519,15 @@ const handleEditSave = () => {
       }
     };
   
+  if (isLoading) {
+    return (
+      <div className="main-content">
+        <div className="placeholder-page-wrapper">
+          식단 데이터를 불러오는 중...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="today-diet-layout">
@@ -551,6 +701,14 @@ const handleEditSave = () => {
             onChange={handleEditChange}
             className="add-input"
           />
+          <input
+            type="number"
+            name="protein" // 단백질 수정 필드 추가
+            value={editMeal.protein}
+            onChange={handleEditChange}
+            className="add-input"
+          />
+
 
           <button onClick={handleEditSave} className="add-button">
             저장
@@ -923,6 +1081,11 @@ const App = () => {
 
     .summary-goal-unit {
         font-weight: bold;
+    }
+
+    .summary-sub {
+        font-size: 0.9rem;
+        color: var(--color-text-light);
     }
 
     .summary-right {
