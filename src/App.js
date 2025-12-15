@@ -13,12 +13,12 @@ console.log("EDAMAM KEY:", process.env.REACT_APP_EDAMAM_KEY);
 // Chart.js 모듈 등록
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-// --- 인라인 SVG 아이콘 정의 ---
-const IconWrapper = ({ children, className, ...props }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
-    {children}
-  </svg>
-);
+// // --- 인라인 SVG 아이콘 정의 ---
+// const IconWrapper = ({ children, className, ...props }) => (
+//   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
+//     {children}
+//   </svg>
+// );
 
 
 
