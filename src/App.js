@@ -20,13 +20,7 @@ const IconWrapper = ({ children, className, ...props }) => (
   </svg>
 );
 
-// const BarChart2 = (props) => (
-//   <IconWrapper {...props}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></IconWrapper>
-// );
 
-// const Calendar = (props) => (
-//   <IconWrapper {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></IconWrapper>
-// );
 
 // --- 기본 데이터 구조 ---
 const initialMeals = [
