@@ -605,6 +605,8 @@ body {
   display: flex;
   align-items: center;
   gap: 24px;
+
+  flex-wrap: wrap;  
 }
 
 .meal-name {
@@ -1249,6 +1251,10 @@ body {
 .modal-value {
   font-weight: bold;
   color: var(--color-text-dark);
+}
+.meal-item-card {
+  flex-wrap: wrap;      /* ⭐ 이게 핵심 */
+  row-gap: 8px;         /* 줄 바뀔 때 간격 */
 }
 
 /* ========== 단식 타이머 스타일 ========== */

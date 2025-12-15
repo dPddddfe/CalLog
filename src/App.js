@@ -720,6 +720,9 @@ const App = () => {
 
   // 모든 CSS 스타일을 <style> 태그 내에 삽입
   const styles = `
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
     /* 기본 CSS 리셋 */
     body {
       margin: 0;
@@ -833,11 +836,10 @@ const App = () => {
     }
 
     .left-panel {
-        flex: 2; 
-        min-width: 300px; 
-        max-width: 650px; /* **2. 좌측 패널 최대 너비 지정** */
+      flex: 2 1 0;   /* ⭐ 핵심 */
+      min-width: 300px;
+      max-width: 650px;
     }
-
     .right-panel {
         flex: 1; 
         min-width: 250px; 
@@ -949,9 +951,10 @@ const App = () => {
 
     .summary-right-row label {
       display: flex;
-      justify-content: space-between;
+      flex-wrap: wrap;          /* ⭐ 핵심 */
       align-items: center;
       width: 100%;
+      gap: 8px;                 /* ⭐ 공간 확보 */
     }
 
     .summary-input {
@@ -977,6 +980,7 @@ const App = () => {
         margin-left: 5px;
         font-size: 0.9rem;
         color: var(--color-text-light);
+        white-space: nowrap;
     }
 
     .summary-button {
@@ -1024,34 +1028,25 @@ const App = () => {
     }
 
     .meal-item-card {
-        background-color: var(--color-white); /* 배경색 변경 */
-        padding: 15px 20px;
-        border-radius: 15px; 
-        box-shadow: 0 2px 8px var(--color-shadow-light);
-        display: flex;
-        align-items: center;
-        font-size: 1.1rem;
-        gap: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
-
+    
     .meal-name {
-        font-weight: bold;
-        flex-grow: 1; /* 이름이 공간을 최대한 차지하도록 */
+      font-weight: bold;
+      flex-grow: 1;
     }
-
-    .meal-calories {
-        min-width: 80px; 
-        color: var(--color-text-light);
-        font-weight: 500;
-        text-align: right;
+    
+    /* ⭐ 추가 */
+    .meal-item-card button {
+      flex-shrink: 0;
     }
-
+    
     .meal-macros {
-        color: var(--color-text-light);
-        font-size: 0.95rem;
-        min-width: 100px;
-        text-align: right;
-    }
+      flex-shrink: 0;
+    } 
 
     /* 음식 추가 섹션 */
     .add-meal-section {
@@ -1194,8 +1189,10 @@ const App = () => {
         }
 
         .today-diet-layout {
-            flex-direction: column;
-            align-items: center;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 2rem;
+          align-items: flex-start;   /* ⭐ 추가 */
         }
 
         .left-panel, .right-panel {
