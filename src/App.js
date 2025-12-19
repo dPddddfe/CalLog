@@ -30,9 +30,9 @@ const Calendar = (props) => (
 
 // --- 기본 데이터 구조 ---
 const initialMeals = [
-  { id: 1, name: '사과', calories: 60, carbs: 30, sugar: 2 },
-  { id: 2, name: '고구마', calories: 60, carbs: 30, sugar: 2 },
-  { id: 3, name: '상추', calories: 60, carbs: 30, sugar: 2 },
+  // { id: 1, name: '사과', calories: 60, carbs: 30, sugar: 2 },
+  // { id: 2, name: '고구마', calories: 60, carbs: 30, sugar: 2 },
+  // { id: 3, name: '상추', calories: 60, carbs: 30, sugar: 2 },
 ];
 
 // --- 1. 헤더 및 네비게이션 컴포넌트 ---
@@ -152,6 +152,8 @@ const TodayDietPage = () => {
   const [fastStartTime, setFastStartTime] = useState(null);
   const [fastElapsed, setFastElapsed] = useState(0);
 
+
+  
   // 저장된 단식 기록 불러오기 
   useEffect(() => {
     const saved = localStorage.getItem("fastRecord");
@@ -254,8 +256,9 @@ const handleEditSave = () => {
     const saved = localStorage.getItem('goalCalories');
     return saved ? Number(saved) : 1800; // 저장된 값 또는 기본값 1800
   });
+  const [loading, setLoading] = useState(true); //  로딩 상태 추가
 
-  
+
 
 
   // 키/몸무게/활동량 상태
@@ -621,7 +624,7 @@ const handleEditSave = () => {
             type="number"
             name="protein"
             placeholder="단백질(g)"
-            value={newMeal.sugar}
+            value={newMeal.protein} 
             readOnly
             className="add-input"
           />

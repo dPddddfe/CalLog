@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -18,7 +18,8 @@ import {
   format,
   addMonths,
   subMonths,
-  getDay
+  getDay,
+  parseISO
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -37,23 +38,39 @@ ChartJS.register(
 const MonthlyCalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
+  const [mealsData, setMealsData] = useState([]); // 🔹 API 데이터
+  const [loading, setLoading] = useState(true); // 🔹 로딩 상태
   
-  // 🔹 localStorage에서 목표 칼로리 불러오기
-  const [goalCalories, setGoalCalories] = useState(() => {
+  // 매번 localStorage에서 최신 값 읽기
+  const goalCalories = (() => {
     const saved = localStorage.getItem('goalCalories');
     return saved ? Number(saved) : 2000;
-  });
+  })();
 
-  // 이번 달의 시작/끝 날짜
+  // 🔹 Mock API에서 데이터 가져오기
+  useEffect(() => {
+    const fetchMeals = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('https://693f646312c964ee6b6fcad6.mockapi.io/meals');
+        const data = await response.json();
+        console.log('Fetched meals:', data);
+        setMealsData(data);
+      } catch (error) {
+        console.error('데이터 가져오기 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMeals();
+  }, []);
+
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
-  
   const monthDates = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  
-  // 월 표시
   const monthTitle = format(currentDate, 'yyyy년 M월', { locale: ko });
 
-  // 이전/다음 달 이동
   const handlePrevMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
   };
@@ -62,29 +79,43 @@ const MonthlyCalendarPage = () => {
     setCurrentDate(addMonths(currentDate, 1));
   };
 
-  // 🔹 더미 데이터 (실제 목표 칼로리 사용)
-  const dummyMonthData = monthDates.map(date => ({
-    date: format(date, 'd'),
-    fullDate: format(date, 'yyyy-MM-dd'),
-    calories: Math.floor(Math.random() * 500) + 1700, // 1700~2200
-    goal: goalCalories  // ← localStorage에서 가져온 값!
-  }));
+  // 🔹 실제 데이터 처리 (날짜별로 그룹화)
+  const monthData = monthDates.map(date => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    
+    // 해당 날짜의 모든 식사 필터링
+    const dayMeals = mealsData.filter(meal => {
+      const mealDate = meal.date ? format(parseISO(meal.date), 'yyyy-MM-dd') : null;
+      return mealDate === dateStr;
+    });
+
+    // 해당 날짜의 총 칼로리 계산
+    const totalCalories = dayMeals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
+
+    return {
+      date: format(date, 'd'),
+      fullDate: dateStr,
+      calories: totalCalories,
+      goal: goalCalories,
+      mealsCount: dayMeals.length
+    };
+  });
 
   // 평균 계산
   const avgCalories = Math.round(
-    dummyMonthData.reduce((sum, day) => sum + day.calories, 0) / dummyMonthData.length
+    monthData.reduce((sum, day) => sum + day.calories, 0) / monthData.length
   );
 
   // Chart.js 데이터 (5일 간격으로 표시)
   const chartData = {
-    labels: dummyMonthData
-      .filter((_, i) => i % 5 === 0 || i === dummyMonthData.length - 1)
+    labels: monthData
+      .filter((_, i) => i % 5 === 0 || i === monthData.length - 1)
       .map(d => `${d.date}일`),
     datasets: [
       {
         label: '섭취 칼로리',
-        data: dummyMonthData
-          .filter((_, i) => i % 5 === 0 || i === dummyMonthData.length - 1)
+        data: monthData
+          .filter((_, i) => i % 5 === 0 || i === monthData.length - 1)
           .map(d => d.calories),
         borderColor: '#66BB6A',
         backgroundColor: 'rgba(102, 187, 106, 0.1)',
@@ -98,8 +129,8 @@ const MonthlyCalendarPage = () => {
       },
       {
         label: '목표',
-        data: dummyMonthData
-          .filter((_, i) => i % 5 === 0 || i === dummyMonthData.length - 1)
+        data: monthData
+          .filter((_, i) => i % 5 === 0 || i === monthData.length - 1)
           .map(d => d.goal),
         borderColor: '#EF5350',
         backgroundColor: 'transparent',
@@ -153,12 +184,12 @@ const MonthlyCalendarPage = () => {
   };
 
   // 달력 그리드용 데이터 (빈 칸 포함)
-  const firstDayOfWeek = getDay(monthStart); // 0=일요일, 1=월요일...
+  const firstDayOfWeek = getDay(monthStart);
   const emptyDays = Array(firstDayOfWeek).fill(null);
 
   const calendarData = [
     ...emptyDays,
-    ...dummyMonthData
+    ...monthData
   ];
 
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
@@ -174,6 +205,17 @@ const MonthlyCalendarPage = () => {
   const closeModal = () => {
     setSelectedDate(null);
   };
+
+  // 🔹 로딩 중일 때
+  if (loading) {
+    return (
+      <div className="calendar-page-container">
+        <div style={{ textAlign: 'center', padding: '3rem' }}>
+          <p>데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="calendar-page-container">
@@ -193,7 +235,7 @@ const MonthlyCalendarPage = () => {
         <h3 className="status-title">이번 달에 평균 {avgCalories}kcal 먹었어요</h3>
         <div className="status-detail">
           <span>🎯 목표 {goalCalories}kcal</span>
-          <span>😊 지금까지 -{(goalCalories - avgCalories) * dummyMonthData.length}kcal</span>
+          <span>😊 지금까지 -{(goalCalories - avgCalories) * monthData.length}kcal</span>
         </div>
       </div>
 
@@ -203,13 +245,6 @@ const MonthlyCalendarPage = () => {
           <Line data={chartData} options={chartOptions} />
         </div>
       </div>
-
-      {/* 탭 버튼
-      <div className="period-tabs">
-        <button className="period-tab">일간</button>
-        <button className="period-tab">주간</button>
-        <button className="period-tab active">월간</button>
-      </div> */}
 
       {/* 달력 뷰 */}
       <div className="section-header" style={{ marginTop: '2rem' }}>
@@ -227,11 +262,10 @@ const MonthlyCalendarPage = () => {
       <div className="monthly-grid">
         {calendarData.map((dayData, index) => {
           if (!dayData) {
-            // 빈 칸 (이전/다음 달)
             return <div key={index} className="calendar-cell empty-cell"></div>;
           }
 
-          const hasData = dayData.calories !== null;
+          const hasData = dayData.calories > 0; // 🔹 0보다 크면 데이터 있음
           const rate = (dayData.calories / dayData.goal) * 100;
           const achieved = rate >= 90 && rate <= 110;
 
@@ -274,6 +308,10 @@ const MonthlyCalendarPage = () => {
               <div className="modal-row">
                 <span className="modal-label">섭취 칼로리:</span>
                 <span className="modal-value">{selectedDate.calories} kcal</span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-label">식사 횟수:</span>
+                <span className="modal-value">{selectedDate.mealsCount}회</span>
               </div>
               <div className="modal-row">
                 <span className="modal-label">목표 칼로리:</span>
