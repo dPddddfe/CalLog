@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'; 
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import { format } from 'date-fns'; 
 import WeeklyCalendarPage from './pages/WeeklyCalendarPage';
 import MonthlyCalendarPage from './pages/MonthlyCalendarPage';
 import CalorieManagementPage from './pages/CalorieManagement'; 
@@ -147,13 +148,33 @@ const MacroDoughnutChart = ({ meals }) => {
 
 // --- 메인 페이지 컴포넌트 ---
 const TodayDietPage = () => {
-  // --- 타이머 기능 상태 및 로직 시작 ---
+  // ==========================================
+  // 1️ 모든 useState 선언
+  // ==========================================
   const [isFasting, setIsFasting] = useState(false);
   const [fastStartTime, setFastStartTime] = useState(null);
   const [fastElapsed, setFastElapsed] = useState(0);
-
-
+  const [editingId, setEditingId] = useState(null);
+  const [editMeal, setEditMeal] = useState({ name: '', calories: '', carbs: '', sugar: '', protein: '' });
+  const [meals, setMeals] = useState([]);
+  const [newMeal, setNewMeal] = useState({ name: '', calories: '', carbs: '', sugar: '', protein: '' });
+  const [isFetchingNutrition, setIsFetchingNutrition] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [goalCalories, setGoalCalories] = useState(() => {
+    const saved = localStorage.getItem('goalCalories');
+    return saved ? Number(saved) : 1800;
+  });
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
+  const [targetWeight, setTargetWeight] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState('female');
+  const [activity, setActivity] = useState('medium');
   
+  // ==========================================
+  // 2️⃣ useEffect - 모두 한 곳에!
+  // ==========================================
+
   // 저장된 단식 기록 불러오기 
   useEffect(() => {
     const saved = localStorage.getItem("fastRecord");
@@ -181,8 +202,53 @@ const TodayDietPage = () => {
     }
     return () => clearInterval(interval);
   }, [isFasting, fastStartTime]);
+  // --- 타이머 기능 상태 및 로직 끝 ---
 
-  // 타이머 시작
+
+  // 오늘 날짜의 식사 데이터 불러오기
+  useEffect(() => {
+    const fetchTodayMeals = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('https://693f646312c964ee6b6fcad6.mockapi.io/meals');
+        const allMeals = await response.json();
+        
+        const today = format(new Date(), 'yyyy-MM-dd');
+        console.log('오늘 날짜:', today);
+        
+        const todayMeals = allMeals.filter(meal => {
+          console.log('식사 날짜:', meal.date, '같나?', meal.date === today);
+          return meal.date === today;
+        });
+        
+        console.log('오늘의 식사:', todayMeals);
+        setMeals(todayMeals);
+      } catch (error) {
+        console.error('데이터 불러오기 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTodayMeals();
+  }, []);
+
+  // ==========================================
+  // 3️ useMemo
+  // ==========================================
+
+  // 총 칼로리 계산
+  const totalCalories = useMemo(() => {
+    return meals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
+  }, [meals]);
+
+  const remainingCalories = goalCalories - totalCalories;
+
+  // ==========================================
+  // 4️ 모든 함수들
+  // ==========================================
+
+  // 타이머 관련 함수
   const startFasting = () => {
     const now = Date.now();
     setFastStartTime(now);
@@ -206,75 +272,53 @@ const TodayDietPage = () => {
     const s = String(totalSec % 60).padStart(2, '0');
     return `${h}:${m}:${s}`;
   };
-  // --- 타이머 기능 상태 및 로직 끝 ---
 
+  // 삭제 처리 (API 연동!)
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`https://693f646312c964ee6b6fcad6.mockapi.io/meals/${id}`, {
+        method: 'DELETE'
+      });
 
-  // 수정 기능을 위한 상태
-const [editingId, setEditingId] = useState(null);
-const [editMeal, setEditMeal] = useState({ name: '', calories: '', carbs: '', sugar: '' });
+      if (response.ok) {
+        setMeals(meals.filter((meal) => meal.id !== id));
+        alert('삭제되었습니다!');
+      }
+    } catch (error) {
+      console.error('삭제 실패:', error);
+      alert('삭제에 실패했습니다.');
+    }
+  };
 
-// 삭제 처리
-const handleDelete = (id) => {
-  setMeals(meals.filter((meal) => meal.id !== id));
-};
+  // 수정 시작: 기존 값 입력창에 로드
+  const handleEditStart = (meal) => {
+    setEditingId(meal.id);
+    setEditMeal({ ...meal });
+  };
 
-// 수정 시작: 기존 값 입력창에 로드
-const handleEditStart = (meal) => {
-  setEditingId(meal.id);
-  setEditMeal({ ...meal });
-};
+  // 수정 입력 처리
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditMeal((prev) => ({ ...prev, [name]: value }));
+  };
 
-// 수정 입력 처리
-const handleEditChange = (e) => {
-  const { name, value } = e.target;
-  setEditMeal((prev) => ({ ...prev, [name]: value }));
-};
-
-// 수정 저장
-const handleEditSave = () => {
-  setMeals((prev) =>
-    prev.map((meal) =>
-      meal.id === editingId
-        ? {
-            ...editMeal,
-            calories: Number(editMeal.calories),
-            carbs: Number(editMeal.carbs),
-            sugar: Number(editMeal.sugar),
-          }
-        : meal
-    )
-  );
-  setEditingId(null);
-};
-
-  const [meals, setMeals] = useState(initialMeals);
-  const [newMeal, setNewMeal] = useState({ name: '', calories: '', carbs: '', sugar: '', protein: '' });
-  // 🔹 Edamam API 호출 중인지 표시하는 플래그
-  const [isFetchingNutrition, setIsFetchingNutrition] = useState(false);
-  const nextId = useRef(initialMeals.length + 1);
-  const [goalCalories, setGoalCalories] = useState(() => {
-    const saved = localStorage.getItem('goalCalories');
-    return saved ? Number(saved) : 1800; // 저장된 값 또는 기본값 1800
-  });
-  const [loading, setLoading] = useState(true); //  로딩 상태 추가
-
-
-
-
-  // 키/몸무게/활동량 상태
-  const [height, setHeight] = useState('');        // cm
-  const [weight, setWeight] = useState('');        // kg
-  const [targetWeight, setTargetWeight] = useState(''); // kg
-  const [age, setAge] = useState('');              // 나이 - 새로 추가
-  const [gender, setGender] = useState('female');    // 성별 - 새로 추가 (기본값: 여성)
-  const [activity, setActivity] = useState('medium');   // low / medium / high
-
-  // 총 칼로리 계산
-  const totalCalories = useMemo(() => {
-    return meals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
-  }, [meals]);
-
-  const remainingCalories = goalCalories - totalCalories;
+  // 수정 저장
+  const handleEditSave = () => {
+    setMeals((prev) =>
+      prev.map((meal) =>
+        meal.id === editingId
+          ? {
+              ...editMeal,
+              calories: Number(editMeal.calories),
+              carbs: Number(editMeal.carbs),
+              sugar: Number(editMeal.sugar),
+              protein: Number(editMeal.protein),
+            }
+          : meal
+      )
+    );
+    setEditingId(null);
+  };
 
   // 목표 칼로리가 바뀔 때마다 localStorage에 저장
   const handleGoalCaloriesChange = (value) => {
@@ -339,53 +383,78 @@ const handleEditSave = () => {
     setNewMeal((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddMeal = () => {
-    if (newMeal.name && newMeal.calories) {
-      setMeals((prev) => [
-        ...prev,
-        {
-          id: nextId.current++,
-          name: newMeal.name,
-          calories: parseInt(newMeal.calories),
-          carbs: parseInt(newMeal.carbs || 0),
-          sugar: parseInt(newMeal.sugar || 0),
-          protein: parseInt(newMeal.protein || 0),
-        },
-      ]);
-      setNewMeal({ name: '', calories: '', carbs: '', sugar: '' });
+  // 🔹 음식 추가 (Mock API에 실제로 저장!)
+  const handleAddMeal = async () => {
+    if (!newMeal.name || !newMeal.calories) {
+      alert('음식 이름과 칼로리를 입력해주세요!');
+      return;
+    }
+
+    const mealData = {
+      name: newMeal.name,
+      calories: parseInt(newMeal.calories),
+      carbs: parseInt(newMeal.carbs || 0),
+      sugar: parseInt(newMeal.sugar || 0),
+      protein: parseInt(newMeal.protein || 0),
+      date: format(new Date(), 'yyyy-MM-dd')  // 🔹 오늘 날짜 저장!
+    };
+
+    try {
+      // Mock API에 POST 요청
+      const response = await fetch('https://693f646312c964ee6b6fcad6.mockapi.io/meals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mealData)
+      });
+
+      if (response.ok) {
+        const savedMeal = await response.json();
+        console.log('저장된 식사:', savedMeal);
+        
+        // 화면에 즉시 추가
+        setMeals((prev) => [...prev, savedMeal]);
+        
+        // 입력창 초기화
+        setNewMeal({ name: '', calories: '', carbs: '', sugar: '', protein: '' });
+        
+        alert('식사가 추가되었습니다!');
+      }
+    } catch (error) {
+      console.error('식사 추가 실패:', error);
+      alert('식사를 추가하지 못했습니다. 다시 시도해주세요.');
     }
   };
 
-    // Edamam에서 영양 정보 가져오기
-    const handleFetchNutrition = async () => {
-      if (!newMeal.name || !newMeal.name.trim()) {
-        alert('먼저 음식 이름을 입력해 주세요!\n예: "1 apple", "100g chicken"');
-        return;
-      }
-  
-      try {
-        setIsFetchingNutrition(true);
-  
-        // newMeal.name → Edamam API로 요청
-        const result = await fetchNutritionFromEdamam(newMeal.name);
-        console.log("[App] Edamam result:", result);
-        // result = { calories, carbs, sugar, protein }
-  
-        // newMeal 상태에 응답 값 채워넣기
-        setNewMeal((prev) => ({
-          ...prev,
-          calories: result.calories,
-          carbs: result.carbs,
-          sugar: result.sugar,
-          protein: result.protein,
-        }));
-      } catch (error) {
-        console.error(error);
-        alert('영양 정보를 가져오지 못했어요. 이름/단위 표현을 한 번만 더 확인해 주세요.');
-      } finally {
-        setIsFetchingNutrition(false);
-      }
-    };
+  // Edamam에서 영양 정보 가져오기
+  const handleFetchNutrition = async () => {
+    if (!newMeal.name || !newMeal.name.trim()) {
+      alert('먼저 음식 이름을 입력해 주세요!\n예: "1 apple", "100g chicken"');
+      return;
+    }
+
+    try {
+      setIsFetchingNutrition(true);
+
+      // newMeal.name → Edamam API로 요청
+      const result = await fetchNutritionFromEdamam(newMeal.name);
+      console.log("[App] Edamam result:", result);
+      // result = { calories, carbs, sugar, protein }
+
+      // newMeal 상태에 응답 값 채워넣기
+      setNewMeal((prev) => ({
+        ...prev,
+        calories: result.calories,
+        carbs: result.carbs,
+        sugar: result.sugar,
+        protein: result.protein,
+      }));
+    } catch (error) {
+      console.error(error);
+      alert('영양 정보를 가져오지 못했어요. 이름/단위 표현을 한 번만 더 확인해 주세요.');
+    } finally {
+      setIsFetchingNutrition(false);
+    }
+  };
   
 
   return (
@@ -1232,7 +1301,11 @@ const App = () => {
         }
     }
   `;
+  
 
+  // ==========================================
+  // 메인 JSX return
+  // ==========================================
   return (
     <>
       <style>{styles}</style>
