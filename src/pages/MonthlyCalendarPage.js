@@ -38,8 +38,8 @@ ChartJS.register(
 const MonthlyCalendarPage = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [mealsData, setMealsData] = useState([]); // 🔹 API 데이터
-  const [loading, setLoading] = useState(true); // 🔹 로딩 상태
+  const [mealsData, setMealsData] = useState([]); // API 데이터
+  const [loading, setLoading] = useState(true); // 로딩 상태
   
   // 매번 localStorage에서 최신 값 읽기
   const goalCalories = (() => {
@@ -47,7 +47,7 @@ const MonthlyCalendarPage = () => {
     return saved ? Number(saved) : 2000;
   })();
 
-  // 🔹 Mock API에서 데이터 가져오기
+  // Mock API에서 데이터 가져오기
   useEffect(() => {
     const fetchMeals = async () => {
       try {
@@ -79,7 +79,7 @@ const MonthlyCalendarPage = () => {
     setCurrentDate(addMonths(currentDate, 1));
   };
 
-  // 🔹 실제 데이터 처리 (날짜별로 그룹화)
+  //  실제 데이터 처리 (날짜별로 그룹화)
   const monthData = monthDates.map(date => {
     const dateStr = format(date, 'yyyy-MM-dd');
     
@@ -206,7 +206,7 @@ const MonthlyCalendarPage = () => {
     setSelectedDate(null);
   };
 
-  // 🔹 로딩 중일 때
+  // 로딩 중일 때
   if (loading) {
     return (
       <div className="calendar-page-container">
@@ -265,7 +265,7 @@ const MonthlyCalendarPage = () => {
             return <div key={index} className="calendar-cell empty-cell"></div>;
           }
 
-          const hasData = dayData.calories > 0; // 🔹 0보다 크면 데이터 있음
+          const hasData = dayData.calories > 0; // 0보다 크면 데이터 있음
           const rate = (dayData.calories / dayData.goal) * 100;
           const achieved = rate >= 90 && rate <= 110;
 
